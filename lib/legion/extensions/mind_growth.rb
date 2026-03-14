@@ -13,6 +13,7 @@ require 'legion/extensions/mind_growth/runners/proposer'
 require 'legion/extensions/mind_growth/runners/analyzer'
 require 'legion/extensions/mind_growth/runners/builder'
 require 'legion/extensions/mind_growth/runners/validator'
+require 'legion/extensions/mind_growth/runners/orchestrator'
 require 'legion/extensions/mind_growth/client'
 
 module Legion

@@ -26,6 +26,10 @@ module Legion
         def validate_proposal(**) = Runners::Validator.validate_proposal(**)
         def validate_scores(**)   = Runners::Validator.validate_scores(**)
         def validate_fitness(**)  = Runners::Validator.validate_fitness(**)
+
+        # Orchestrator delegation
+        def run_growth_cycle(**) = Runners::Orchestrator.run_growth_cycle(**)
+        def growth_status(**)    = Runners::Orchestrator.growth_status(**)
       end
     end
   end
