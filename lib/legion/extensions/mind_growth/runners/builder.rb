@@ -13,10 +13,9 @@ module Legion
 
             pipeline = Helpers::BuildPipeline.new(proposal)
             proposal.transition!(:building)
+            base_path ||= ::Dir.pwd
 
-            # Each stage returns { success: true/false, ... }
-            # Pipeline advances on success, records errors on failure
-            run_stage(pipeline, :scaffold, -> { scaffold_stage(proposal, base_path) })
+            run_stage(pipeline, :scaffold,  -> { scaffold_stage(proposal, base_path) })
             run_stage(pipeline, :implement, -> { implement_stage(proposal) }) unless pipeline.failed?
             run_stage(pipeline, :test,      -> { test_stage(proposal, base_path) }) unless pipeline.failed?
             run_stage(pipeline, :validate,  -> { validate_stage(proposal, base_path) }) unless pipeline.failed?
@@ -51,25 +50,110 @@ module Legion
             pipeline.advance!(result)
           end
 
-          # Stub stages — real implementation delegates to lex-codegen and lex-exec
-          def scaffold_stage(_proposal, _base_path)
-            { success: true, stage: :scaffold, files: 0, message: 'scaffold requires lex-codegen' }
+          def ext_path(proposal, base_path)
+            name = strip_lex_prefix(proposal.name)
+            ::File.join(base_path, "lex-#{name}")
           end
 
+          def strip_lex_prefix(name)
+            name.to_s.sub(/\Alex-/, '')
+          end
+
+          # --- Scaffold Stage ---
+          # Delegates to lex-codegen when loaded; stubs otherwise
+          def scaffold_stage(proposal, base_path)
+            return { success: true, stage: :scaffold, files: 0, message: 'scaffold requires lex-codegen' } unless codegen_available?
+
+            name = strip_lex_prefix(proposal.name)
+            result = Legion::Extensions::Codegen::Runners::Generate.scaffold_extension(
+              name:           name,
+              module_name:    proposal.module_name,
+              description:    proposal.description || "#{proposal.name} cognitive extension",
+              category:       proposal.category,
+              helpers:        proposal.helpers || [],
+              runner_methods: proposal.runner_methods || [],
+              base_path:      base_path
+            )
+
+            { success: result[:success], stage: :scaffold, files: result[:files_created] || 0,
+              path: result[:path], error: result[:error] }
+          end
+
+          # --- Implement Stage (stub — requires legion-llm) ---
           def implement_stage(_proposal)
             { success: true, stage: :implement, message: 'implementation requires legion-llm' }
           end
 
-          def test_stage(_proposal, _base_path)
-            { success: true, stage: :test, message: 'testing requires lex-exec' }
+          # --- Test Stage ---
+          # Delegates to lex-exec bundler runners when loaded; stubs otherwise
+          def test_stage(proposal, base_path)
+            return { success: true, stage: :test, message: 'testing requires lex-exec' } unless exec_available?
+
+            path = ext_path(proposal, base_path)
+
+            install = Legion::Extensions::Exec::Runners::Bundler.install(path: path)
+            unless install[:success]
+              return { success: false, stage: :test, step: :install,
+                       error: install[:stderr] || install[:error] }
+            end
+
+            rspec   = Legion::Extensions::Exec::Runners::Bundler.exec_rspec(path: path)
+            rubocop = Legion::Extensions::Exec::Runners::Bundler.exec_rubocop(path: path)
+
+            rspec_ok   = rspec[:success] && (rspec.dig(:parsed, :failures) || 0).zero?
+            rubocop_ok = rubocop[:success]
+
+            errors = [
+              (rspec_ok ? nil : "rspec: #{rspec[:parsed] || rspec[:stderr]}"),
+              (rubocop_ok ? nil : "rubocop: #{rubocop[:parsed] || rubocop[:stderr]}")
+            ].compact.join('; ')
+
+            { success: rspec_ok && rubocop_ok, stage: :test,
+              rspec: rspec[:parsed] || { raw: rspec[:stdout] },
+              rubocop: rubocop[:parsed] || { raw: rubocop[:stdout] },
+              error: errors.empty? ? nil : errors }
           end
 
-          def validate_stage(_proposal, _base_path)
-            { success: true, stage: :validate, message: 'validation requires lex-exec' }
+          # --- Validate Stage ---
+          # Delegates to lex-codegen validators when loaded; stubs otherwise
+          def validate_stage(proposal, base_path)
+            return { success: true, stage: :validate, message: 'validation requires lex-codegen' } unless codegen_available?
+
+            path      = ext_path(proposal, base_path)
+            structure = Legion::Extensions::Codegen::Runners::Validate.validate_structure(path: path)
+            gemspec   = Legion::Extensions::Codegen::Runners::Validate.validate_gemspec(path: path)
+
+            valid = structure[:valid] && gemspec[:valid]
+            { success: valid, stage: :validate, structure: structure, gemspec: gemspec,
+              error: valid ? nil : "structure: #{structure[:missing]}, gemspec: #{gemspec[:issues]}" }
           end
 
-          def register_stage(_proposal)
-            { success: true, stage: :register, message: 'registration requires lex-metacognition registry' }
+          # --- Register Stage ---
+          # Delegates to lex-metacognition registry when loaded; stubs otherwise
+          def register_stage(proposal)
+            return { success: true, stage: :register, message: 'registration requires lex-metacognition registry' } unless registry_available?
+
+            result = Legion::Extensions::Metacognition::Runners::Registry.register_extension(
+              name:        proposal.name,
+              module_name: proposal.module_name,
+              category:    proposal.category.to_s,
+              description: proposal.description
+            )
+
+            { success: result[:success], stage: :register, error: result[:error] }
+          end
+
+          # --- Dependency availability checks ---
+          def codegen_available?
+            defined?(Legion::Extensions::Codegen::Runners::Generate)
+          end
+
+          def exec_available?
+            defined?(Legion::Extensions::Exec::Runners::Bundler)
+          end
+
+          def registry_available?
+            defined?(Legion::Extensions::Metacognition::Runners::Registry)
           end
         end
       end

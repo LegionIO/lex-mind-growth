@@ -146,7 +146,14 @@ When `existing_extensions` is nil, falls back to `Legion::Extensions::Metacognit
 | `build_extension` | `proposal_id:`, `base_path: nil` | `{ success:, pipeline:, proposal: }` |
 | `build_status` | `proposal_id:` | `{ success:, name:, status: }` |
 
-All build stages (scaffold, implement, test, validate, register) currently return `{ success: true }` with messages indicating the required external dependency. Pipeline always completes successfully in the current stub implementation.
+Build stages delegate to real implementations when their dependencies are loaded:
+- **scaffold**: delegates to `Legion::Extensions::Codegen::Runners::Generate.scaffold_extension` — generates the full extension file tree from the proposal's helpers and runner_methods
+- **implement**: stub — requires `legion-llm` (not yet built)
+- **test**: delegates to `Legion::Extensions::Exec::Runners::Bundler` — runs `bundle install`, `bundle exec rspec`, and `bundle exec rubocop`
+- **validate**: delegates to `Legion::Extensions::Codegen::Runners::Validate` — checks structure and gemspec
+- **register**: delegates to `Legion::Extensions::Metacognition::Runners::Registry.register_extension`
+
+When a dependency is not loaded, each stage falls back to a stub that returns `{ success: true }` with a message indicating what's needed. This enables incremental wiring — the pipeline works end-to-end as stubs and activates real behavior as dependencies become available.
 
 ### `Runners::Validator`
 
@@ -168,7 +175,7 @@ All build stages (scaffold, implement, test, validate, register) currently retur
 
 - All four runners use `extend self` — they are module singletons, not class instances
 - `Client` delegates to all four runner modules via method forwarding (`def method(**) = Runners::Module.method(**)`)
-- Build stages are stubs: scaffold requires `lex-codegen`, implement requires `legion-llm`, test/validate require `lex-exec`, register requires `lex-metacognition`
+- Build stages use graceful degradation: each checks `defined?()` for its dependency module and falls back to a stub if unavailable. Only `implement` remains a permanent stub (requires `legion-llm`).
 - `BUILD_TIMEOUT_MS = 600_000` is defined but not enforced — there is no actual timeout in `BuildPipeline`
 - `propose_concept` when given no `name:` generates a random hex name (`lex-xxxxxxxx`) and a capitalized `module_name`
 - `evaluate_proposal` with no `scores:` defaults all 5 dimensions to `0.7` — guarantees approval
