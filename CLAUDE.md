@@ -163,6 +163,21 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 | `validate_scores` | `scores:` | `{ success:, valid:, issues: }` |
 | `validate_fitness` | `extensions:` | `{ success:, ranked:, prune_candidates:, improvement_candidates: }` |
 
+### `Runners::Orchestrator`
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `run_growth_cycle` | `existing_extensions: nil`, `base_path: nil`, `max_proposals: 3` | `{ success:, trace: }` |
+| `growth_status` | — | `{ success:, proposals:, coverage:, model_coverage: }` |
+
+`run_growth_cycle` chains the full autonomous growth loop: analyze gaps -> propose concepts -> evaluate proposals -> build approved extensions. Returns a detailed `trace` hash with step-by-step results. Each step records what happened so the agent can learn from its own build attempts.
+
+## Actors
+
+### `Actor::GrowthCycle`
+
+`Every 3600s` (1 hour). Calls `Runners::Orchestrator.run_growth_cycle`. Only `enabled?` when `lex-codegen` or `lex-exec` is loaded. `run_now?` is false — waits for first interval.
+
 ## Integration Points
 
 - `analyze_gaps` should be run after the extension ecosystem changes to identify what to build next
@@ -173,8 +188,8 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 
 ## Development Notes
 
-- All four runners use `extend self` — they are module singletons, not class instances
-- `Client` delegates to all four runner modules via method forwarding (`def method(**) = Runners::Module.method(**)`)
+- All five runners use `extend self` — they are module singletons, not class instances
+- `Client` delegates to all five runner modules via method forwarding (`def method(**) = Runners::Module.method(**)`)
 - Build stages use graceful degradation: each checks `defined?()` for its dependency module and falls back to a stub if unavailable. Only `implement` remains a permanent stub (requires `legion-llm`).
 - `BUILD_TIMEOUT_MS = 600_000` is defined but not enforced — there is no actual timeout in `BuildPipeline`
 - `propose_concept` when given no `name:` generates a random hex name (`lex-xxxxxxxx`) and a capitalized `module_name`
