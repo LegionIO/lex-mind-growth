@@ -11,3 +11,6 @@ group :test do
   gem 'rubocop-rspec'
   gem 'simplecov'
 end
+
+gem 'lex-codegen', path: '../../extensions-core/lex-codegen', require: false
+gem 'lex-exec', path: '../../extensions-core/lex-exec', require: false
