@@ -35,6 +35,25 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::ProposalStore do
     end
   end
 
+  describe '#all' do
+    it 'returns all proposals' do
+      store.store(proposal)
+      store.store(approved_proposal)
+      expect(store.all.size).to eq(2)
+    end
+
+    it 'returns empty array for empty store' do
+      expect(store.all).to eq([])
+    end
+
+    it 'returns a copy (not the internal array)' do
+      store.store(proposal)
+      all = store.all
+      all.clear
+      expect(store.all.size).to eq(1)
+    end
+  end
+
   describe '#by_status' do
     it 'returns proposals matching the status' do
       store.store(proposal)

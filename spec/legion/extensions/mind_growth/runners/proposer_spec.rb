@@ -69,6 +69,19 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Proposer do
       expect(Legion::Extensions::MindGrowth::Helpers::Constants::CATEGORIES).to include(result[:proposal][:category])
     end
 
+    it 'suggests the most underrepresented category based on target distribution' do
+      # With no proposals, cognition has the highest target (0.30) so it gets suggested
+      result = proposer.propose_concept(description: 'first auto')
+      expect(result[:proposal][:category]).to eq(:cognition)
+    end
+
+    it 'shifts suggestion after filling a category' do
+      3.times { proposer.propose_concept(category: :cognition, description: 'cog') }
+      result = proposer.propose_concept(description: 'next auto')
+      # cognition is now overrepresented relative to target, so it should suggest something else
+      expect(result[:proposal][:category]).not_to eq(:cognition)
+    end
+
     it 'stores proposal in the proposal store' do
       result = proposer.propose_concept(name: 'lex-stored', category: :cognition, description: 'test')
       id     = result[:proposal][:id]
@@ -76,6 +89,102 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Proposer do
       expect(stats[:stats][:total]).to eq(1)
       get_result = proposer.list_proposals
       expect(get_result[:proposals].map { |p| p[:id] }).to include(id)
+    end
+
+    it 'derives module_name correctly from lex- prefixed name' do
+      result = proposer.propose_concept(name: 'lex-working-memory', category: :memory, description: 'test')
+      expect(result[:proposal][:module_name]).to eq('WorkingMemory')
+    end
+
+    it 'derives module_name from non-lex name' do
+      result = proposer.propose_concept(name: 'emotion-engine', category: :cognition, description: 'test')
+      expect(result[:proposal][:module_name]).to eq('EmotionEngine')
+    end
+
+    it 'derives module_name for generated names' do
+      result = proposer.propose_concept(category: :cognition, description: 'auto named')
+      expect(result[:proposal][:module_name]).to be_a(String)
+      expect(result[:proposal][:module_name]).not_to include('-')
+    end
+
+    context 'with LLM enrichment' do
+      let(:mock_chat) { double('RubyLLM::Chat') }
+      let(:enrichment_json) do
+        {
+          metaphor:       'like a garden growing knowledge',
+          rationale:      'fills the working memory gap',
+          helpers:        [{ name: 'store', methods: [{ name: 'add', params: %w[key value] }] }],
+          runner_methods: [{ name: 'update', params: ['tick_results'], returns: 'status hash' }]
+        }.to_json
+      end
+      let(:mock_response) { double('RubyLLM::Message', content: enrichment_json) }
+
+      before do
+        llm_mod = Module.new do
+          def self.started? = true
+          def self.chat(**) = nil
+        end
+        stub_const('Legion::LLM', llm_mod)
+        allow(Legion::LLM).to receive(:chat).and_return(mock_chat)
+        allow(mock_chat).to receive(:ask).and_return(mock_response)
+      end
+
+      it 'populates helpers from LLM response' do
+        result = proposer.propose_concept(name: 'lex-enriched', category: :cognition, description: 'enriched')
+        expect(result[:proposal][:helpers]).not_to be_empty
+        expect(result[:proposal][:helpers].first[:name]).to eq('store')
+      end
+
+      it 'populates runner_methods from LLM response' do
+        result = proposer.propose_concept(name: 'lex-enriched', category: :cognition, description: 'enriched')
+        expect(result[:proposal][:runner_methods]).not_to be_empty
+        expect(result[:proposal][:runner_methods].first[:name]).to eq('update')
+      end
+
+      it 'populates metaphor from LLM response' do
+        result = proposer.propose_concept(name: 'lex-enriched', category: :cognition, description: 'enriched')
+        expect(result[:proposal][:metaphor]).to eq('like a garden growing knowledge')
+      end
+
+      it 'populates rationale from LLM response' do
+        result = proposer.propose_concept(name: 'lex-enriched', category: :cognition, description: 'enriched')
+        expect(result[:proposal][:rationale]).to eq('fills the working memory gap')
+      end
+
+      it 'handles LLM errors gracefully' do
+        allow(mock_chat).to receive(:ask).and_raise(StandardError, 'timeout')
+        result = proposer.propose_concept(name: 'lex-fallback', category: :cognition, description: 'test')
+        expect(result[:success]).to be true
+        expect(result[:proposal][:helpers]).to eq([])
+      end
+
+      it 'handles malformed JSON gracefully' do
+        allow(mock_response).to receive(:content).and_return('not json at all')
+        result = proposer.propose_concept(name: 'lex-malformed', category: :cognition, description: 'test')
+        expect(result[:success]).to be true
+        expect(result[:proposal][:helpers]).to eq([])
+      end
+
+      it 'extracts JSON from markdown fences' do
+        fenced = "```json\n#{enrichment_json}\n```"
+        allow(mock_response).to receive(:content).and_return(fenced)
+        result = proposer.propose_concept(name: 'lex-fenced', category: :cognition, description: 'test')
+        expect(result[:proposal][:helpers]).not_to be_empty
+      end
+    end
+
+    context 'without LLM' do
+      it 'creates proposal with empty helpers when enrich: true but no LLM' do
+        result = proposer.propose_concept(name: 'lex-nollm', category: :cognition, description: 'test')
+        expect(result[:success]).to be true
+        expect(result[:proposal][:helpers]).to eq([])
+      end
+
+      it 'skips enrichment when enrich: false' do
+        result = proposer.propose_concept(name: 'lex-noenrich', category: :cognition, description: 'test', enrich: false)
+        expect(result[:success]).to be true
+        expect(result[:proposal][:helpers]).to eq([])
+      end
     end
   end
 

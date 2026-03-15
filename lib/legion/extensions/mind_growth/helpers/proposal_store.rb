@@ -20,6 +20,10 @@ module Legion
             @mutex.synchronize { @proposals[id] }
           end
 
+          def all
+            @mutex.synchronize { @proposals.values.dup }
+          end
+
           def by_status(status)
             @mutex.synchronize { @proposals.values.select { |p| p.status == status.to_sym } }
           end

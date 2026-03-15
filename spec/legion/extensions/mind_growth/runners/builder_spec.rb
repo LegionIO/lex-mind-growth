@@ -12,7 +12,7 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Builder do
 
   let(:proposal_id) do
     result = Legion::Extensions::MindGrowth::Runners::Proposer.propose_concept(
-      name: 'lex-buildable', category: :cognition, description: 'a buildable proposal'
+      name: 'lex-buildable', category: :cognition, description: 'a buildable proposal', enrich: false
     )
     result[:proposal][:id]
   end
@@ -293,7 +293,7 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Builder do
 
       it 'includes metaphor in prompt when present' do
         metaphor_id = Legion::Extensions::MindGrowth::Runners::Proposer.propose_concept(
-          name: 'lex-metaphoric', category: :cognition, description: 'test metaphor'
+          name: 'lex-metaphoric', category: :cognition, description: 'test metaphor', enrich: false
         )[:proposal][:id]
         proposal_obj = Legion::Extensions::MindGrowth::Runners::Proposer.get_proposal_object(metaphor_id)
         proposal_obj.instance_variable_set(:@metaphor, 'like a garden')

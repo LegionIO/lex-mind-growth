@@ -123,13 +123,15 @@ Scores live extensions by weighted formula.
 | Method | Key Args | Returns |
 |---|---|---|
 | `analyze_gaps` | `existing_extensions: nil` | `{ success:, models:, recommendations: }` |
-| `propose_concept` | `category: nil`, `description: nil`, `name: nil` | `{ success:, proposal: }` |
+| `propose_concept` | `category: nil`, `description: nil`, `name: nil`, `enrich: true` | `{ success:, proposal: }` |
 | `evaluate_proposal` | `proposal_id:`, `scores: nil` | `{ success:, proposal:, approved: }` |
 | `list_proposals` | `status: nil`, `limit: 20` | `{ success:, proposals:, count: }` |
 | `proposal_stats` | — | `{ success:, stats: }` |
 | `get_proposal_object` | `id` | raw `ConceptProposal` object (used by Builder/Validator internally) |
 
 When `existing_extensions` is nil, falls back to `Legion::Extensions::Metacognition::Helpers::Constants::SUBSYSTEMS` if defined, else `[]`.
+
+When `enrich: true` (default) and `legion-llm` is loaded and started, `propose_concept` uses the LLM to generate `helpers`, `runner_methods`, `metaphor`, and `rationale` from the description. This produces richer proposals that scaffold into meaningful extensions. Falls back silently to empty helpers/runner_methods when LLM is unavailable or returns unparseable output.
 
 ### `Runners::Analyzer`
 
@@ -192,6 +194,8 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 - `Client` delegates to all five runner modules via method forwarding (`def method(**) = Runners::Module.method(**)`)
 - Build stages use graceful degradation: each checks `defined?()` for its dependency module and falls back to a stub if unavailable. All five stages are now wired — `implement` checks `Legion::LLM.started?` and falls back to a stub when legion-llm is not loaded or not started.
 - `BUILD_TIMEOUT_MS = 600_000` is defined but not enforced — there is no actual timeout in `BuildPipeline`
-- `propose_concept` when given no `name:` generates a random hex name (`lex-xxxxxxxx`) and a capitalized `module_name`
+- `propose_concept` when given no `name:` generates a random hex name (`lex-xxxxxxxx`); `derive_module_name` strips the `lex-` prefix and capitalizes segments (e.g., `lex-working-memory` -> `WorkingMemory`)
+- `suggest_category` compares actual proposal category distribution against `TARGET_DISTRIBUTION` and picks the category with the largest gap; with no proposals, defaults to `:cognition` (highest target at 0.30)
+- `enrich_proposal` uses `Legion::LLM` to generate helpers, runner_methods, metaphor, and rationale from the proposal description; parses the JSON response with graceful fallback to empty on parse errors or LLM unavailability
 - `evaluate_proposal` with no `scores:` defaults all 5 dimensions to `0.7` — guarantees approval
 - `ProposalStore` max is 500 (defined as class constant, not in Constants module) — no eviction, just a cap reference; the store does not actually enforce this limit in the current implementation
