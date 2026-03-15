@@ -222,6 +222,94 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Proposer do
       result = proposer.evaluate_proposal(proposal_id: proposal_id)
       expect(result[:proposal]).to be_a(Hash)
     end
+
+    context 'with LLM scoring' do
+      let(:mock_chat) { double('RubyLLM::Chat') }
+      let(:score_json) do
+        { novelty: 0.85, fit: 0.75, cognitive_value: 0.80, implementability: 0.90, composability: 0.70 }.to_json
+      end
+      let(:mock_response) { double('RubyLLM::Message', content: score_json) }
+
+      before do
+        llm_mod = Module.new do
+          def self.started? = true
+          def self.chat(**) = nil
+        end
+        stub_const('Legion::LLM', llm_mod)
+        allow(Legion::LLM).to receive(:chat).and_return(mock_chat)
+        allow(mock_chat).to receive(:ask).and_return(mock_response)
+      end
+
+      it 'uses LLM scores when no explicit scores provided' do
+        result = proposer.evaluate_proposal(proposal_id: proposal_id)
+        expect(result[:success]).to be true
+        expect(result[:proposal][:scores][:novelty]).to eq(0.85)
+        expect(result[:proposal][:scores][:fit]).to eq(0.75)
+      end
+
+      it 'approves when LLM scores are above threshold' do
+        result = proposer.evaluate_proposal(proposal_id: proposal_id)
+        expect(result[:approved]).to be true
+      end
+
+      it 'rejects when LLM scores are below threshold' do
+        low_scores = { novelty: 0.3, fit: 0.4, cognitive_value: 0.5, implementability: 0.2, composability: 0.1 }.to_json
+        allow(mock_response).to receive(:content).and_return(low_scores)
+        result = proposer.evaluate_proposal(proposal_id: proposal_id)
+        expect(result[:approved]).to be false
+      end
+
+      it 'clamps scores to 0.0-1.0 range' do
+        out_of_range = { novelty: 1.5, fit: -0.3, cognitive_value: 0.8, implementability: 2.0, composability: 0.7 }.to_json
+        allow(mock_response).to receive(:content).and_return(out_of_range)
+        result = proposer.evaluate_proposal(proposal_id: proposal_id)
+        expect(result[:proposal][:scores][:novelty]).to eq(1.0)
+        expect(result[:proposal][:scores][:fit]).to eq(0.0)
+        expect(result[:proposal][:scores][:implementability]).to eq(1.0)
+      end
+
+      it 'prefers explicit scores over LLM scores' do
+        explicit = Legion::Extensions::MindGrowth::Helpers::Constants::EVALUATION_DIMENSIONS.to_h { |d| [d, 0.65] }
+        result = proposer.evaluate_proposal(proposal_id: proposal_id, scores: explicit)
+        expect(result[:proposal][:scores][:novelty]).to eq(0.65)
+        expect(mock_chat).not_to have_received(:ask)
+      end
+
+      it 'falls back to defaults when LLM returns malformed JSON' do
+        allow(mock_response).to receive(:content).and_return('not valid json')
+        result = proposer.evaluate_proposal(proposal_id: proposal_id)
+        expect(result[:success]).to be true
+        expect(result[:proposal][:scores][:novelty]).to eq(0.7)
+      end
+
+      it 'falls back to defaults when LLM returns incomplete scores' do
+        partial = { novelty: 0.8, fit: 0.7 }.to_json
+        allow(mock_response).to receive(:content).and_return(partial)
+        result = proposer.evaluate_proposal(proposal_id: proposal_id)
+        expect(result[:proposal][:scores][:novelty]).to eq(0.7)
+      end
+
+      it 'falls back to defaults when LLM raises an error' do
+        allow(mock_chat).to receive(:ask).and_raise(StandardError, 'timeout')
+        result = proposer.evaluate_proposal(proposal_id: proposal_id)
+        expect(result[:success]).to be true
+        expect(result[:proposal][:scores][:novelty]).to eq(0.7)
+      end
+
+      it 'parses scores from markdown-fenced JSON' do
+        fenced = "```json\n#{score_json}\n```"
+        allow(mock_response).to receive(:content).and_return(fenced)
+        result = proposer.evaluate_proposal(proposal_id: proposal_id)
+        expect(result[:proposal][:scores][:novelty]).to eq(0.85)
+      end
+
+      it 'includes proposal context in the scoring prompt' do
+        proposer.evaluate_proposal(proposal_id: proposal_id)
+        expect(mock_chat).to have_received(:ask).with(a_string_including('lex-eval'))
+        expect(mock_chat).to have_received(:ask).with(a_string_including('to evaluate'))
+        expect(mock_chat).to have_received(:ask).with(a_string_including('cognition'))
+      end
+    end
   end
 
   describe '.list_proposals' do

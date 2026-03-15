@@ -49,7 +49,7 @@ module Legion
             proposal = proposal_store.get(proposal_id)
             return { success: false, error: :not_found } unless proposal
 
-            eval_scores = scores || default_scores
+            eval_scores = scores || score_with_llm(proposal) || default_scores
             proposal.evaluate!(eval_scores)
             Legion::Logging.info "[mind_growth:proposer] evaluated #{proposal.name}: #{proposal.status}" if defined?(Legion::Logging)
             { success: true, proposal: proposal.to_h, approved: proposal.status == :approved }
@@ -145,6 +145,54 @@ module Legion
 
           def llm_available?
             defined?(Legion::LLM) && Legion::LLM.respond_to?(:started?) && Legion::LLM.started?
+          end
+
+          def score_with_llm(proposal)
+            return nil unless llm_available?
+
+            response = Legion::LLM.chat.ask(scoring_prompt(proposal))
+            parse_scores(response.content)
+          rescue StandardError => e
+            Legion::Logging.debug "[mind_growth:proposer] LLM scoring failed: #{e.message}" if defined?(Legion::Logging)
+            nil
+          end
+
+          def scoring_prompt(proposal)
+            <<~PROMPT
+              Score this proposed LegionIO cognitive extension on five dimensions.
+              Each score must be a float between 0.0 and 1.0.
+
+              Extension: #{proposal.name}
+              Category: #{proposal.category}
+              Description: #{proposal.description}
+              #{"Metaphor: #{proposal.metaphor}" if proposal.metaphor}
+              #{"Rationale: #{proposal.rationale}" if proposal.rationale}
+              Helpers: #{proposal.helpers.map { |h| h[:name] }.join(', ').then { |s| s.empty? ? 'none' : s }}
+              Runner methods: #{proposal.runner_methods.map { |r| r[:name] }.join(', ').then { |s| s.empty? ? 'none' : s }}
+
+              Scoring dimensions:
+              - novelty: How unique is this extension relative to existing cognitive capabilities?
+              - fit: How well does it fill a gap in the current extension ecosystem?
+              - cognitive_value: How much does it add to the cognitive architecture?
+              - implementability: How feasible is it to implement with current infrastructure?
+              - composability: How well does it compose with other extensions?
+
+              Return ONLY a JSON object (no markdown fencing) with these five keys and float values:
+              {"novelty": 0.0, "fit": 0.0, "cognitive_value": 0.0, "implementability": 0.0, "composability": 0.0}
+            PROMPT
+          end
+
+          def parse_scores(content)
+            cleaned = content.gsub(/```(?:json)?\s*\n?/, '').strip
+            data = ::JSON.parse(cleaned, symbolize_names: true)
+            Helpers::Constants::EVALUATION_DIMENSIONS.to_h do |dim|
+              val = data[dim]
+              return nil unless val.is_a?(Numeric)
+
+              [dim, val.to_f.clamp(0.0, 1.0)]
+            end
+          rescue ::JSON::ParserError, NoMethodError
+            nil
           end
 
           def default_scores
