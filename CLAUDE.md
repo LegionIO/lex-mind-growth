@@ -124,7 +124,7 @@ Scores live extensions by weighted formula.
 |---|---|---|
 | `analyze_gaps` | `existing_extensions: nil` | `{ success:, models:, recommendations: }` |
 | `propose_concept` | `category: nil`, `description: nil`, `name: nil`, `enrich: true` | `{ success:, proposal: }` or `{ success: false, error: :redundant, similar_to:, score: }` |
-| `evaluate_proposal` | `proposal_id:`, `scores: nil` | `{ success:, proposal:, approved: }` |
+| `evaluate_proposal` | `proposal_id:`, `scores: nil` | `{ success:, proposal:, approved:, auto_approved: }` |
 | `list_proposals` | `status: nil`, `limit: 20` | `{ success:, proposals:, count: }` |
 | `proposal_stats` | — | `{ success:, stats: }` |
 | `get_proposal_object` | `id` | raw `ConceptProposal` object (used by Builder/Validator internally) |
@@ -171,10 +171,12 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 
 | Method | Key Args | Returns |
 |---|---|---|
-| `run_growth_cycle` | `existing_extensions: nil`, `base_path: nil`, `max_proposals: 3` | `{ success:, trace: }` |
+| `run_growth_cycle` | `existing_extensions: nil`, `base_path: nil`, `max_proposals: 3`, `force: false` | `{ success:, trace: }` |
 | `growth_status` | — | `{ success:, proposals:, coverage:, model_coverage: }` |
 
 `run_growth_cycle` chains the full autonomous growth loop: analyze gaps -> propose concepts -> evaluate proposals -> build approved extensions. Returns a detailed `trace` hash with step-by-step results. Each step records what happened so the agent can learn from its own build attempts.
+
+**Auto-approve governance gate**: By default, only proposals with all dimension scores >= `AUTO_APPROVE_THRESHOLD` (0.9) are built automatically. Proposals that pass evaluation (>= 0.6) but don't meet the auto-approve threshold are held for governance review — the cycle succeeds but reports them as `held_for_review` in the evaluate step and `held` in the build step. Pass `force: true` to build all approved proposals regardless of auto-approve status. The evaluate step trace includes `auto_approved`, `approved` (held), and `rejected` counts.
 
 ## Actors
 

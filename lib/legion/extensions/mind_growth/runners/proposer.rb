@@ -59,7 +59,8 @@ module Legion
             eval_scores = scores || score_with_llm(proposal) || default_scores
             proposal.evaluate!(eval_scores)
             Legion::Logging.info "[mind_growth:proposer] evaluated #{proposal.name}: #{proposal.status}" if defined?(Legion::Logging)
-            { success: true, proposal: proposal.to_h, approved: proposal.status == :approved }
+            { success: true, proposal: proposal.to_h, approved: proposal.status == :approved,
+              auto_approved: proposal.auto_approvable? }
           rescue ArgumentError => e
             { success: false, error: e.message }
           end

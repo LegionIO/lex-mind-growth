@@ -7,7 +7,7 @@ module Legion
         module Orchestrator
           extend self
 
-          def run_growth_cycle(existing_extensions: nil, base_path: nil, max_proposals: 3, **)
+          def run_growth_cycle(existing_extensions: nil, base_path: nil, max_proposals: 3, force: false, **)
             trace = { started_at: Time.now.utc, steps: [] }
 
             # Step 1: Analyze gaps in the cognitive ecosystem
@@ -22,19 +22,11 @@ module Legion
             return failure(trace, 'no proposals created') if proposals.empty?
 
             # Step 3: Evaluate each proposal
-            evaluated = evaluate_proposals(proposals)
-            trace[:steps] << { step: :evaluate, evaluated: evaluated.size,
-                               approved: evaluated.count { |e| e[:approved] },
-                               rejected: evaluated.count { |e| !e[:approved] } }
+            classify_and_trace_evaluations(evaluate_proposals(proposals), trace)
 
-            approved = evaluated.select { |e| e[:approved] }
-            return failure(trace, 'no proposals approved') if approved.empty?
-
-            # Step 4: Build approved proposals
-            builds = build_approved(approved, base_path)
-            trace[:steps] << { step: :build, attempted: builds.size,
-                               succeeded: builds.count { |b| b[:success] },
-                               failed: builds.count { |b| !b[:success] } }
+            # Step 4: Build — auto-approved build immediately; regular approved only when forced
+            result = execute_build_step(trace, base_path, force)
+            return result if result
 
             trace[:completed_at] = Time.now.utc
             trace[:duration_ms] = ((trace[:completed_at] - trace[:started_at]) * 1000).round
@@ -99,6 +91,56 @@ module Legion
             REQUIREMENT_CATEGORIES[requirement.to_sym]
           end
 
+          def classify_and_trace_evaluations(evaluated, trace)
+            auto_approved = evaluated.select { |e| e[:auto_approved] }
+            approved      = evaluated.select { |e| e[:approved] && !e[:auto_approved] }
+            rejected      = evaluated.reject { |e| e[:approved] }
+            trace[:steps] << { step: :evaluate, evaluated: evaluated.size,
+                               auto_approved: auto_approved.size,
+                               approved: approved.size,
+                               rejected: rejected.size,
+                               held_for_review: approved.size }
+          end
+
+          def execute_build_step(trace, base_path, force)
+            eval_step = trace[:steps].find { |s| s[:step] == :evaluate }
+            held_count = eval_step[:approved]
+
+            # Collect buildable proposals from the store
+            all_evaluated = proposal_ids_from_trace(trace)
+            buildable = select_buildable(all_evaluated, force)
+
+            if buildable.empty? && held_count.positive?
+              trace[:steps] << { step: :build, attempted: 0, succeeded: 0, failed: 0,
+                                 held: held_count,
+                                 message: 'approved proposals held for governance review' }
+              nil
+            elsif buildable.empty?
+              failure(trace, 'no proposals approved')
+            else
+              builds = build_proposals(buildable, base_path)
+              trace[:steps] << { step: :build, attempted: builds.size,
+                                 succeeded: builds.count { |b| b[:success] },
+                                 failed:    builds.count { |b| !b[:success] },
+                                 held:      force ? 0 : held_count }
+              nil
+            end
+          end
+
+          def proposal_ids_from_trace(trace)
+            propose_step = trace[:steps].find { |s| s[:step] == :propose }
+            propose_step[:proposals]
+          end
+
+          def select_buildable(proposal_ids, force)
+            proposal_ids.filter_map do |id|
+              proposal = Runners::Proposer.get_proposal_object(id)
+              next unless proposal&.status == :approved
+
+              { proposal: proposal.to_h } if force || proposal.auto_approvable?
+            end
+          end
+
           def evaluate_proposals(proposals)
             proposals.filter_map do |p|
               result = Runners::Proposer.evaluate_proposal(proposal_id: p[:proposal][:id])
@@ -106,8 +148,8 @@ module Legion
             end
           end
 
-          def build_approved(approved, base_path)
-            approved.filter_map do |a|
+          def build_proposals(proposals, base_path)
+            proposals.filter_map do |a|
               result = Runners::Builder.build_extension(
                 proposal_id: a[:proposal][:id],
                 base_path:   base_path
