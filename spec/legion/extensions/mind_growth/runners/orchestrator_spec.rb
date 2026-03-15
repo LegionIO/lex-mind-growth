@@ -75,6 +75,15 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Orchestrator do
       expect(build_step[:succeeded]).to eq(build_step[:attempted])
     end
 
+    it 'assigns categories to proposals based on requirement mapping' do
+      result = orchestrator.run_growth_cycle(max_proposals: 1)
+      proposal_step = result[:trace][:steps].find { |s| s[:step] == :propose }
+      proposal_id = proposal_step[:proposals].first
+      proposal = Legion::Extensions::MindGrowth::Runners::Proposer.get_proposal_object(proposal_id)
+      expected_cats = Legion::Extensions::MindGrowth::Helpers::Constants::CATEGORIES
+      expect(expected_cats).to include(proposal.category)
+    end
+
     context 'when all extensions are covered' do
       it 'returns failure when no priorities found' do
         # Provide all extensions needed by all models to eliminate gaps

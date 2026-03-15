@@ -156,6 +156,36 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::ProposalStore do
     end
   end
 
+  describe 'MAX_PROPOSALS eviction' do
+    it 'evicts the oldest proposal when at capacity' do
+      stub_const("#{described_class}::MAX_PROPOSALS", 3)
+      small_store = described_class.new
+      proposals = 4.times.map do |i|
+        Legion::Extensions::MindGrowth::Helpers::ConceptProposal.new(
+          name: "lex-evict-#{i}", module_name: "E#{i}", category: :cognition, description: "evict #{i}"
+        )
+      end
+      proposals.each { |p| small_store.store(p) }
+      expect(small_store.stats[:total]).to eq(3)
+      expect(small_store.get(proposals[0].id)).to be_nil
+      expect(small_store.get(proposals[3].id)).not_to be_nil
+    end
+
+    it 'keeps the most recent proposals' do
+      stub_const("#{described_class}::MAX_PROPOSALS", 2)
+      small_store = described_class.new
+      3.times do |i|
+        p = Legion::Extensions::MindGrowth::Helpers::ConceptProposal.new(
+          name: "lex-keep-#{i}", module_name: "K#{i}", category: :cognition, description: "keep #{i}"
+        )
+        small_store.store(p)
+      end
+      names = small_store.all.map(&:name)
+      expect(names).to include('lex-keep-1', 'lex-keep-2')
+      expect(names).not_to include('lex-keep-0')
+    end
+  end
+
   describe 'thread safety' do
     it 'handles concurrent stores without error' do
       threads = 10.times.map do |i|

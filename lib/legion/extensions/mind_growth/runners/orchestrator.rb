@@ -45,6 +45,32 @@ module Legion
             { success: false, error: e.message, trace: trace }
           end
 
+          REQUIREMENT_CATEGORIES = {
+            attention:           :perception,
+            global_workspace:    :cognition,
+            broadcasting:        :communication,
+            working_memory:      :memory,
+            consciousness:       :introspection,
+            prediction:          :cognition,
+            free_energy:         :cognition,
+            predictive_coding:   :cognition,
+            belief_revision:     :cognition,
+            active_inference:    :cognition,
+            error_monitoring:    :safety,
+            intuition:           :cognition,
+            dual_process:        :cognition,
+            inhibition:          :safety,
+            executive_function:  :cognition,
+            cognitive_control:   :cognition,
+            emotion:             :introspection,
+            somatic_marker:      :introspection,
+            interoception:       :perception,
+            appraisal:           :introspection,
+            embodied_simulation: :perception,
+            episodic_buffer:     :memory,
+            cognitive_load:      :introspection
+          }.freeze
+
           def growth_status(**)
             stats = Runners::Proposer.proposal_stats
             profile = Runners::Analyzer.cognitive_profile
@@ -62,10 +88,15 @@ module Legion
               name = "lex-#{priority_name.to_s.tr('_', '-')}"
               result = Runners::Proposer.propose_concept(
                 name:        name,
+                category:    category_for_requirement(priority_name),
                 description: "Cognitive extension for #{priority_name} (recommended by gap analysis)"
               )
               result if result[:success]
             end
+          end
+
+          def category_for_requirement(requirement)
+            REQUIREMENT_CATEGORIES[requirement.to_sym]
           end
 
           def evaluate_proposals(proposals)

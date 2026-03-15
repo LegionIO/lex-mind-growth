@@ -131,5 +131,25 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::BuildPipeline do
     it 'includes duration_ms' do
       expect(pipeline.to_h[:duration_ms]).to be >= 0
     end
+
+    it 'includes artifacts hash' do
+      expect(pipeline.to_h[:artifacts]).to eq({})
+    end
+
+    it 'records artifacts for completed stages' do
+      pipeline.advance!({ success: true, path: '/tmp/lex-test' })
+      expect(pipeline.to_h[:artifacts][:scaffold]).to include(path: '/tmp/lex-test')
+    end
+  end
+
+  describe '#artifacts' do
+    it 'is empty initially' do
+      expect(pipeline.artifacts).to eq({})
+    end
+
+    it 'stores artifact for each successful stage' do
+      pipeline.advance!({ success: true, files: 12 })
+      expect(pipeline.artifacts[:scaffold][:files]).to eq(12)
+    end
   end
 end

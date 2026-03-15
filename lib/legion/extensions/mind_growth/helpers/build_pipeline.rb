@@ -7,7 +7,7 @@ module Legion
         class BuildPipeline
           STAGES = %i[scaffold implement test validate register complete failed].freeze
 
-          attr_reader :proposal, :stage, :errors, :started_at, :completed_at
+          attr_reader :proposal, :stage, :errors, :artifacts, :started_at, :completed_at
 
           def initialize(proposal)
             @proposal     = proposal
@@ -43,6 +43,7 @@ module Legion
               proposal_id:  @proposal.id,
               stage:        @stage,
               errors:       @errors,
+              artifacts:    @artifacts,
               started_at:   @started_at,
               completed_at: @completed_at,
               duration_ms:  duration_ms

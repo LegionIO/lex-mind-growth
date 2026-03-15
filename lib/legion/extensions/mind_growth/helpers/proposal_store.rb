@@ -13,7 +13,10 @@ module Legion
           end
 
           def store(proposal)
-            @mutex.synchronize { @proposals[proposal.id] = proposal }
+            @mutex.synchronize do
+              evict_oldest if @proposals.size >= MAX_PROPOSALS
+              @proposals[proposal.id] = proposal
+            end
           end
 
           def get(id)
@@ -53,6 +56,13 @@ module Legion
 
           def clear
             @mutex.synchronize { @proposals.clear }
+          end
+
+          private
+
+          def evict_oldest
+            oldest = @proposals.values.min_by { |p| p.created_at.to_f }
+            @proposals.delete(oldest.id) if oldest
           end
         end
       end
