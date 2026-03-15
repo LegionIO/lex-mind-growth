@@ -50,6 +50,11 @@ module Legion
           end
 
           def transition!(new_status)
+            new_status = new_status.to_sym
+            unless Helpers::Constants::PROPOSAL_STATUSES.include?(new_status)
+              raise ArgumentError, "invalid status: #{new_status} (valid: #{Helpers::Constants::PROPOSAL_STATUSES.join(', ')})"
+            end
+
             @status   = new_status
             @built_at = Time.now.utc if new_status == :passing
           end

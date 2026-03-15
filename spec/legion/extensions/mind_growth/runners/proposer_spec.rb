@@ -342,6 +342,25 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Proposer do
       expect(result[:proposal]).to be_a(Hash)
     end
 
+    it 'returns auto_approved: false with default scores' do
+      result = proposer.evaluate_proposal(proposal_id: proposal_id)
+      expect(result[:auto_approved]).to be false
+    end
+
+    it 'returns auto_approved: true when all scores meet auto-approve threshold' do
+      high = Legion::Extensions::MindGrowth::Helpers::Constants::EVALUATION_DIMENSIONS.to_h { |d| [d, 0.95] }
+      result = proposer.evaluate_proposal(proposal_id: proposal_id, scores: high)
+      expect(result[:auto_approved]).to be true
+    end
+
+    it 'returns auto_approved: false when any score is below auto-approve threshold' do
+      mixed = Legion::Extensions::MindGrowth::Helpers::Constants::EVALUATION_DIMENSIONS.to_h { |d| [d, 0.95] }
+      mixed[:fit] = 0.85
+      result = proposer.evaluate_proposal(proposal_id: proposal_id, scores: mixed)
+      expect(result[:approved]).to be true
+      expect(result[:auto_approved]).to be false
+    end
+
     context 'with LLM scoring' do
       let(:mock_chat) { double('RubyLLM::Chat') }
       let(:score_json) do

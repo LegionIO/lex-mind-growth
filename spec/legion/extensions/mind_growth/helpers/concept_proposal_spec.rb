@@ -172,6 +172,22 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::ConceptProposal do
       proposal.transition!(:building)
       expect(proposal.built_at).to be_nil
     end
+
+    it 'accepts string status and converts to symbol' do
+      proposal.transition!('building')
+      expect(proposal.status).to eq(:building)
+    end
+
+    it 'raises ArgumentError for invalid status' do
+      expect { proposal.transition!(:banana) }.to raise_error(ArgumentError, /invalid status.*banana/)
+    end
+
+    it 'accepts all valid PROPOSAL_STATUSES' do
+      Legion::Extensions::MindGrowth::Helpers::Constants::PROPOSAL_STATUSES.each do |status|
+        p = described_class.new(**valid_params)
+        expect { p.transition!(status) }.not_to raise_error
+      end
+    end
   end
 
   describe '#to_h' do

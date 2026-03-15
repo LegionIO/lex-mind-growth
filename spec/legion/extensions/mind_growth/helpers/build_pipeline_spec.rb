@@ -81,6 +81,41 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::BuildPipeline do
         expect(pipeline.errors.first[:at]).to be_a(Time)
       end
     end
+
+    context 'when already complete' do
+      before do
+        described_class::STAGES[0...-2].each { pipeline.advance!({ success: true }) }
+      end
+
+      it 'ignores further advance! calls' do
+        pipeline.advance!({ success: true })
+        expect(pipeline.stage).to eq(:complete)
+      end
+
+      it 'does not add errors after completion' do
+        pipeline.advance!({ success: false, error: 'too late' })
+        expect(pipeline.errors).to be_empty
+      end
+    end
+
+    context 'when already failed' do
+      before do
+        Legion::Extensions::MindGrowth::Helpers::Constants::MAX_FIX_ATTEMPTS.times do
+          pipeline.advance!({ success: false, error: 'err' })
+        end
+      end
+
+      it 'ignores further advance! calls with success' do
+        pipeline.advance!({ success: true })
+        expect(pipeline.stage).to eq(:failed)
+      end
+
+      it 'does not accumulate more errors' do
+        count_before = pipeline.errors.size
+        pipeline.advance!({ success: false, error: 'extra' })
+        expect(pipeline.errors.size).to eq(count_before)
+      end
+    end
   end
 
   describe '#complete?' do

@@ -149,12 +149,11 @@ module Legion
           end
 
           def build_proposals(proposals, base_path)
-            proposals.filter_map do |a|
-              result = Runners::Builder.build_extension(
+            proposals.map do |a|
+              Runners::Builder.build_extension(
                 proposal_id: a[:proposal][:id],
                 base_path:   base_path
               )
-              result
             end
           end
 

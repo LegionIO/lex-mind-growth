@@ -19,6 +19,8 @@ module Legion
           end
 
           def advance!(result)
+            return if complete? || failed?
+
             if result[:success]
               @artifacts[@stage] = result
               next_idx      = STAGES.index(@stage) + 1

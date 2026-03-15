@@ -69,7 +69,7 @@ One proposed cognitive extension with full lifecycle tracking.
 - `evaluate!(scores)` — sets `@scores`, `@evaluated_at`, transitions status to `:approved` or `:rejected` based on `passing_evaluation?`
 - `passing_evaluation?` — all 5 dimensions must have scores >= `MIN_DIMENSION_SCORE` (0.6)
 - `auto_approvable?` — all 5 dimensions >= `AUTO_APPROVE_THRESHOLD` (0.9)
-- `transition!(new_status)` — sets `@status`; sets `@built_at` when status becomes `:passing`
+- `transition!(new_status)` — validates against `PROPOSAL_STATUSES`, raises `ArgumentError` for invalid statuses; sets `@built_at` when status becomes `:passing`
 - Fields: `id` (UUID), `name`, `module_name`, `category`, `description`, `metaphor`, `helpers` (array of `{name:, methods:}`), `runner_methods` (array of `{name:, params:, returns:}`), `rationale`, `scores`, `status`, `origin`, `created_at`, `evaluated_at`, `built_at`
 
 ### `Helpers::ProposalStore`
@@ -103,7 +103,7 @@ Staged build with error accumulation.
 
 Stages: `[:scaffold, :implement, :test, :validate, :register, :complete, :failed]`
 
-- `advance!(result)` — if `result[:success]`, stores artifact and moves to next stage; if failure, records error and transitions to `:failed` after `MAX_FIX_ATTEMPTS` errors
+- `advance!(result)` — no-ops if already `complete?` or `failed?`; if `result[:success]`, stores artifact and moves to next stage; if failure, records error and transitions to `:failed` after `MAX_FIX_ATTEMPTS` errors
 - `complete?` / `failed?` — stage checks
 - `duration_ms` — elapsed time since start
 
