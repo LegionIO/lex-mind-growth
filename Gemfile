@@ -12,5 +12,6 @@ group :test do
   gem 'simplecov'
 end
 
+gem 'legion-llm', path: '../../legion-llm', require: false
 gem 'lex-codegen', path: '../../extensions-core/lex-codegen', require: false
 gem 'lex-exec', path: '../../extensions-core/lex-exec', require: false

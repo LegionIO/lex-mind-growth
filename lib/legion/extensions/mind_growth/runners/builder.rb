@@ -16,7 +16,7 @@ module Legion
             base_path ||= ::Dir.pwd
 
             run_stage(pipeline, :scaffold,  -> { scaffold_stage(proposal, base_path) })
-            run_stage(pipeline, :implement, -> { implement_stage(proposal) }) unless pipeline.failed?
+            run_stage(pipeline, :implement, -> { implement_stage(proposal, base_path) }) unless pipeline.failed?
             run_stage(pipeline, :test,      -> { test_stage(proposal, base_path) }) unless pipeline.failed?
             run_stage(pipeline, :validate,  -> { validate_stage(proposal, base_path) }) unless pipeline.failed?
             run_stage(pipeline, :register,  -> { register_stage(proposal) }) unless pipeline.failed?
@@ -79,9 +79,34 @@ module Legion
               path: result[:path], error: result[:error] }
           end
 
-          # --- Implement Stage (stub — requires legion-llm) ---
-          def implement_stage(_proposal)
-            { success: true, stage: :implement, message: 'implementation requires legion-llm' }
+          # --- Implement Stage ---
+          # Delegates to legion-llm when loaded and started; stubs otherwise
+          def implement_stage(proposal, base_path)
+            return { success: true, stage: :implement, message: 'implementation requires legion-llm' } unless llm_available?
+
+            path = ext_path(proposal, base_path)
+            target_files = implementation_targets(path)
+
+            if target_files.empty?
+              return { success: true, stage: :implement, files_implemented: 0,
+                       message: 'no implementation targets found' }
+            end
+
+            files_implemented = 0
+            errors = []
+
+            target_files.each do |file_path|
+              result = implement_file(file_path, proposal)
+              if result[:success]
+                files_implemented += 1
+              else
+                errors << "#{::File.basename(file_path)}: #{result[:error]}"
+              end
+            end
+
+            success = errors.empty?
+            { success: success, stage: :implement, files_implemented: files_implemented,
+              total_files: target_files.size, error: success ? nil : errors.join('; ') }
           end
 
           # --- Test Stage ---
@@ -143,6 +168,69 @@ module Legion
             { success: result[:success], stage: :register, error: result[:error] }
           end
 
+          # --- LLM implementation helpers ---
+          def implementation_targets(path)
+            runners = ::Dir.glob(::File.join(path, 'lib/**/runners/*.rb'))
+            helpers = ::Dir.glob(::File.join(path, 'lib/**/helpers/*.rb'))
+            (runners + helpers).reject { |f| f.end_with?('version.rb', 'client.rb') }
+          end
+
+          def implement_file(file_path, proposal)
+            stub_content = ::File.read(file_path)
+
+            chat = Legion::LLM.chat
+            chat.with_instructions(implementation_instructions)
+            response = chat.ask(file_implementation_prompt(stub_content, proposal))
+            code = extract_ruby_code(response.content)
+
+            ::File.write(file_path, code)
+            { success: true, path: file_path }
+          rescue StandardError => e
+            { success: false, error: e.message }
+          end
+
+          def implementation_instructions
+            <<~INSTRUCTIONS
+              You are a Ruby code generator for LegionIO cognitive extensions.
+              You receive a stub Ruby file and a description of the extension's purpose.
+              Replace stub method bodies with real implementations.
+
+              Rules:
+              - Return ONLY the complete Ruby file content, no markdown fencing, no explanation
+              - Keep the exact module/class/method structure and signatures
+              - Keep `# frozen_string_literal: true` on line 1
+              - Runner methods must return `{ success: true/false, ... }` hashes
+              - Use in-memory state only (instance variables, no database, no external APIs)
+              - Helper classes may use initialize for state setup
+              - Follow Ruby style: 2-space indent, snake_case methods
+              - Do not add require statements
+              - Do not add comments unless the logic is non-obvious
+            INSTRUCTIONS
+          end
+
+          def file_implementation_prompt(stub_content, proposal)
+            parts = ['Implement this LegionIO extension file.']
+            parts << "Extension: #{proposal.name}"
+            parts << "Category: #{proposal.category}"
+            parts << "Description: #{proposal.description}"
+            parts << "Metaphor: #{proposal.metaphor}" if proposal.metaphor
+            parts << ''
+            parts << 'Current stub:'
+            parts << stub_content
+            parts.join("\n")
+          end
+
+          def extract_ruby_code(content)
+            code = if content.match?(/```ruby\s*\n/)
+                     content.match(/```ruby\s*\n(.*?)```/m)&.captures&.first || content
+                   elsif content.match?(/```\s*\n/)
+                     content.match(/```\s*\n(.*?)```/m)&.captures&.first || content
+                   else
+                     content
+                   end
+            "#{code.strip}\n"
+          end
+
           # --- Dependency availability checks ---
           def codegen_available?
             defined?(Legion::Extensions::Codegen::Runners::Generate)
@@ -154,6 +242,10 @@ module Legion
 
           def registry_available?
             defined?(Legion::Extensions::Metacognition::Runners::Registry)
+          end
+
+          def llm_available?
+            defined?(Legion::LLM) && Legion::LLM.respond_to?(:started?) && Legion::LLM.started?
           end
         end
       end

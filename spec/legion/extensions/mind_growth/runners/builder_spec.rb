@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require 'tmpdir'
+require 'fileutils'
+require 'securerandom'
+
 RSpec.describe Legion::Extensions::MindGrowth::Runners::Builder do
   subject(:builder) { described_class }
 
@@ -209,6 +213,97 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Builder do
         builder.build_extension(proposal_id: proposal_id, base_path: '/tmp')
         expect(Legion::Extensions::Metacognition::Runners::Registry).to have_received(:register_extension)
           .with(hash_including(module_name: anything, description: 'a buildable proposal'))
+      end
+    end
+
+    describe 'implement_stage with legion-llm' do
+      let(:mock_chat) { double('RubyLLM::Chat') }
+      let(:mock_response) { double('RubyLLM::Message', content: "# frozen_string_literal: true\n\n{ success: true }\n") }
+      let(:ext_dir) { File.join(Dir.tmpdir, "lex-mind-growth-llm-test-#{SecureRandom.hex(4)}") }
+
+      before do
+        llm_mod = Module.new do
+          def self.started? = true
+          def self.chat(**) = nil
+        end
+        stub_const('Legion::LLM', llm_mod)
+        allow(Legion::LLM).to receive(:chat).and_return(mock_chat)
+        allow(mock_chat).to receive(:with_instructions).and_return(mock_chat)
+        allow(mock_chat).to receive(:ask).and_return(mock_response)
+
+        # Create a minimal scaffolded extension directory
+        runner_dir = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners')
+        helper_dir = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'helpers')
+        FileUtils.mkdir_p(runner_dir)
+        FileUtils.mkdir_p(helper_dir)
+        File.write(File.join(runner_dir, 'example.rb'), "# frozen_string_literal: true\n\n{ success: true }\n")
+        File.write(File.join(helper_dir, 'store.rb'), "# frozen_string_literal: true\n\nclass Store; end\n")
+      end
+
+      after { FileUtils.rm_rf(ext_dir) }
+
+      it 'calls LLM for each target file' do
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(mock_chat).to have_received(:ask).twice
+      end
+
+      it 'passes system instructions to chat' do
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(mock_chat).to have_received(:with_instructions)
+          .with(a_string_including('Ruby code generator')).at_least(:once)
+      end
+
+      it 'includes proposal description in prompt' do
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(mock_chat).to have_received(:ask)
+          .with(a_string_including('a buildable proposal')).at_least(:once)
+      end
+
+      it 'writes LLM output back to files' do
+        allow(mock_response).to receive(:content).and_return("# frozen_string_literal: true\n\n# implemented\n")
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        runner_path = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners', 'example.rb')
+        expect(File.read(runner_path)).to include('# implemented')
+      end
+
+      it 'extracts code from markdown fences' do
+        fenced = "Here's the code:\n```ruby\n# frozen_string_literal: true\n\nreal_code\n```\n"
+        allow(mock_response).to receive(:content).and_return(fenced)
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        runner_path = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners', 'example.rb')
+        content = File.read(runner_path)
+        expect(content).to include('real_code')
+        expect(content).not_to include('```')
+      end
+
+      it 'skips version.rb and client.rb' do
+        version_dir = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable')
+        File.write(File.join(version_dir, 'version.rb'), "VERSION = '0.1.0'\n")
+        File.write(File.join(version_dir, 'client.rb'), "class Client; end\n")
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        # Only runner/example.rb and helper/store.rb should be targets (2 calls)
+        expect(mock_chat).to have_received(:ask).twice
+      end
+
+      it 'handles LLM errors gracefully' do
+        allow(mock_chat).to receive(:ask).and_raise(StandardError, 'LLM timeout')
+        result = builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(result[:pipeline][:errors]).not_to be_empty
+      end
+
+      it 'includes metaphor in prompt when present' do
+        metaphor_id = Legion::Extensions::MindGrowth::Runners::Proposer.propose_concept(
+          name: 'lex-metaphoric', category: :cognition, description: 'test metaphor'
+        )[:proposal][:id]
+        proposal_obj = Legion::Extensions::MindGrowth::Runners::Proposer.get_proposal_object(metaphor_id)
+        proposal_obj.instance_variable_set(:@metaphor, 'like a garden')
+
+        runner_dir = File.join(ext_dir, 'lex-metaphoric', 'lib', 'legion', 'extensions', 'metaphoric', 'runners')
+        FileUtils.mkdir_p(runner_dir)
+        File.write(File.join(runner_dir, 'grow.rb'), "# stub\n")
+
+        builder.build_extension(proposal_id: metaphor_id, base_path: ext_dir)
+        expect(mock_chat).to have_received(:ask).with(a_string_including('like a garden'))
       end
     end
 
