@@ -25,6 +25,13 @@ module Legion
             mod_name     = derive_module_name(gem_name)
             desc         = description || "Proposed #{cat} extension"
 
+            redundancy = check_redundancy(gem_name, desc)
+            if redundancy[:redundant]
+              Legion::Logging.info "[mind_growth:proposer] rejected redundant: #{gem_name} (#{redundancy[:score]})" if defined?(Legion::Logging)
+              return { success: false, error: :redundant, similar_to: redundancy[:similar_to],
+                       score: redundancy[:score] }
+            end
+
             enrichment = enrich ? enrich_proposal(gem_name, cat, desc) : {}
 
             proposal = Helpers::ConceptProposal.new(
@@ -197,6 +204,62 @@ module Legion
 
           def default_scores
             Helpers::Constants::EVALUATION_DIMENSIONS.to_h { |d| [d, 0.7] }
+          end
+
+          def check_redundancy(name, description)
+            existing = proposal_store.all
+            return { redundant: false } if existing.empty?
+
+            exact = existing.find { |p| p.name == name }
+            return { redundant: true, similar_to: exact.name, score: 1.0 } if exact
+
+            check_redundancy_with_llm(name, description, existing) || { redundant: false }
+          end
+
+          def check_redundancy_with_llm(name, description, existing)
+            return nil unless llm_available?
+
+            candidates = existing.last(20).map { |p| { name: p.name, description: p.description } }
+            response = Legion::LLM.chat.ask(redundancy_prompt(name, description, candidates))
+            parse_redundancy(response.content)
+          rescue StandardError => e
+            Legion::Logging.debug "[mind_growth:proposer] LLM redundancy check failed: #{e.message}" if defined?(Legion::Logging)
+            nil
+          end
+
+          def redundancy_prompt(name, description, candidates)
+            list = candidates.map { |c| "- #{c[:name]}: #{c[:description]}" }.join("\n")
+            <<~PROMPT
+              Determine if a proposed extension is redundant with any existing proposal.
+
+              Proposed extension:
+              - Name: #{name}
+              - Description: #{description}
+
+              Existing proposals:
+              #{list}
+
+              Return ONLY a JSON object (no markdown fencing) with:
+              - "redundant": true/false (true if the proposed extension substantially overlaps an existing one)
+              - "similar_to": name of the most similar existing proposal (or null if not redundant)
+              - "score": float 0.0-1.0 measuring semantic similarity (>= 0.8 means redundant)
+            PROMPT
+          end
+
+          def parse_redundancy(content)
+            cleaned = content.gsub(/```(?:json)?\s*\n?/, '').strip
+            data = ::JSON.parse(cleaned, symbolize_names: true)
+            score = data[:score]
+            return nil unless score.is_a?(Numeric)
+
+            score = score.to_f.clamp(0.0, 1.0)
+            {
+              redundant:  score >= Helpers::Constants::REDUNDANCY_THRESHOLD,
+              similar_to: data[:similar_to],
+              score:      score
+            }
+          rescue ::JSON::ParserError, NoMethodError
+            nil
           end
         end
       end

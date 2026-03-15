@@ -123,13 +123,15 @@ Scores live extensions by weighted formula.
 | Method | Key Args | Returns |
 |---|---|---|
 | `analyze_gaps` | `existing_extensions: nil` | `{ success:, models:, recommendations: }` |
-| `propose_concept` | `category: nil`, `description: nil`, `name: nil`, `enrich: true` | `{ success:, proposal: }` |
+| `propose_concept` | `category: nil`, `description: nil`, `name: nil`, `enrich: true` | `{ success:, proposal: }` or `{ success: false, error: :redundant, similar_to:, score: }` |
 | `evaluate_proposal` | `proposal_id:`, `scores: nil` | `{ success:, proposal:, approved: }` |
 | `list_proposals` | `status: nil`, `limit: 20` | `{ success:, proposals:, count: }` |
 | `proposal_stats` | — | `{ success:, stats: }` |
 | `get_proposal_object` | `id` | raw `ConceptProposal` object (used by Builder/Validator internally) |
 
 When `existing_extensions` is nil, falls back to `Legion::Extensions::Metacognition::Helpers::Constants::SUBSYSTEMS` if defined, else `[]`.
+
+Before creating a proposal, `propose_concept` runs a redundancy check against all existing proposals. Exact name matches are rejected immediately (score 1.0). When `legion-llm` is available, semantic similarity is checked by sending the new name/description and the last 20 existing proposals to the LLM; proposals with similarity score >= `REDUNDANCY_THRESHOLD` (0.8) are rejected with `error: :redundant`. Falls back to allowing the proposal when LLM is unavailable, returns unparseable output, or errors.
 
 When `enrich: true` (default) and `legion-llm` is loaded and started, `propose_concept` uses the LLM to generate `helpers`, `runner_methods`, `metaphor`, and `rationale` from the description. This produces richer proposals that scaffold into meaningful extensions. Falls back silently to empty helpers/runner_methods when LLM is unavailable or returns unparseable output.
 

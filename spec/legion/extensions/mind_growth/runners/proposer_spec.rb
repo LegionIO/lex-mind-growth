@@ -186,6 +186,125 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Proposer do
         expect(result[:proposal][:helpers]).to eq([])
       end
     end
+
+    context 'redundancy checking' do
+      it 'rejects exact name duplicates' do
+        proposer.propose_concept(name: 'lex-duplicate', category: :cognition, description: 'first')
+        result = proposer.propose_concept(name: 'lex-duplicate', category: :cognition, description: 'second')
+        expect(result[:success]).to be false
+        expect(result[:error]).to eq(:redundant)
+        expect(result[:similar_to]).to eq('lex-duplicate')
+        expect(result[:score]).to eq(1.0)
+      end
+
+      it 'allows proposals with different names without LLM' do
+        proposer.propose_concept(name: 'lex-alpha', category: :cognition, description: 'first')
+        result = proposer.propose_concept(name: 'lex-beta', category: :cognition, description: 'second')
+        expect(result[:success]).to be true
+      end
+
+      it 'allows first proposal without checking' do
+        result = proposer.propose_concept(name: 'lex-first', category: :cognition, description: 'first')
+        expect(result[:success]).to be true
+      end
+
+      context 'with LLM redundancy checking' do
+        let(:mock_chat) { double('RubyLLM::Chat') }
+
+        before do
+          llm_mod = Module.new do
+            def self.started? = true
+            def self.chat(**) = nil
+          end
+          stub_const('Legion::LLM', llm_mod)
+          allow(Legion::LLM).to receive(:chat).and_return(mock_chat)
+        end
+
+        it 'rejects semantically redundant proposals' do
+          proposer.propose_concept(name: 'lex-working-mem', category: :memory, description: 'working memory management', enrich: false)
+          redundancy_json = { redundant: true, similar_to: 'lex-working-mem', score: 0.92 }.to_json
+          allow(mock_chat).to receive(:ask).and_return(double(content: redundancy_json))
+
+          result = proposer.propose_concept(name: 'lex-work-memory', category: :memory, description: 'manages working memory')
+          expect(result[:success]).to be false
+          expect(result[:error]).to eq(:redundant)
+          expect(result[:similar_to]).to eq('lex-working-mem')
+          expect(result[:score]).to eq(0.92)
+        end
+
+        it 'allows non-redundant proposals detected by LLM' do
+          proposer.propose_concept(name: 'lex-existing', category: :cognition, description: 'existing extension', enrich: false)
+          not_redundant_json = { redundant: false, similar_to: nil, score: 0.3 }.to_json
+          allow(mock_chat).to receive(:ask).and_return(double(content: not_redundant_json))
+
+          result = proposer.propose_concept(name: 'lex-novel', category: :memory, description: 'totally novel', enrich: false)
+          expect(result[:success]).to be true
+        end
+
+        it 'uses REDUNDANCY_THRESHOLD for the cutoff' do
+          proposer.propose_concept(name: 'lex-base', category: :cognition, description: 'base extension', enrich: false)
+          below_threshold = { redundant: false, similar_to: 'lex-base', score: 0.79 }.to_json
+          allow(mock_chat).to receive(:ask).and_return(double(content: below_threshold))
+
+          result = proposer.propose_concept(name: 'lex-similar', category: :cognition, description: 'similar', enrich: false)
+          expect(result[:success]).to be true
+        end
+
+        it 'falls back to non-redundant when LLM returns malformed JSON' do
+          proposer.propose_concept(name: 'lex-anchor', category: :cognition, description: 'anchor', enrich: false)
+          allow(mock_chat).to receive(:ask).and_return(double(content: 'not json'))
+
+          result = proposer.propose_concept(name: 'lex-different', category: :memory, description: 'different', enrich: false)
+          expect(result[:success]).to be true
+        end
+
+        it 'falls back to non-redundant when LLM raises an error' do
+          proposer.propose_concept(name: 'lex-safe', category: :cognition, description: 'safe', enrich: false)
+          allow(mock_chat).to receive(:ask).and_raise(StandardError, 'timeout')
+
+          result = proposer.propose_concept(name: 'lex-new', category: :memory, description: 'new', enrich: false)
+          expect(result[:success]).to be true
+        end
+
+        it 'includes existing proposals in the redundancy prompt' do
+          proposer.propose_concept(name: 'lex-ctx-test', category: :cognition, description: 'context test', enrich: false)
+          not_redundant = { redundant: false, similar_to: nil, score: 0.1 }.to_json
+          allow(mock_chat).to receive(:ask).and_return(double(content: not_redundant))
+
+          proposer.propose_concept(name: 'lex-check-ctx', category: :memory, description: 'check', enrich: false)
+          expect(mock_chat).to have_received(:ask).with(a_string_including('lex-ctx-test'))
+          expect(mock_chat).to have_received(:ask).with(a_string_including('context test'))
+        end
+
+        it 'parses redundancy from markdown-fenced JSON' do
+          proposer.propose_concept(name: 'lex-fenced-base', category: :cognition, description: 'base', enrich: false)
+          fenced = "```json\n#{{ redundant: true, similar_to: 'lex-fenced-base', score: 0.85 }.to_json}\n```"
+          allow(mock_chat).to receive(:ask).and_return(double(content: fenced))
+
+          result = proposer.propose_concept(name: 'lex-fenced-dup', category: :cognition, description: 'dup')
+          expect(result[:success]).to be false
+          expect(result[:error]).to eq(:redundant)
+        end
+
+        it 'clamps redundancy score to 0.0-1.0' do
+          proposer.propose_concept(name: 'lex-clamp-base', category: :cognition, description: 'base', enrich: false)
+          clamped = { redundant: true, similar_to: 'lex-clamp-base', score: 1.5 }.to_json
+          allow(mock_chat).to receive(:ask).and_return(double(content: clamped))
+
+          result = proposer.propose_concept(name: 'lex-clamp-new', category: :cognition, description: 'new')
+          expect(result[:success]).to be false
+          expect(result[:score]).to eq(1.0)
+        end
+
+        it 'skips LLM check for exact name match (efficiency)' do
+          proposer.propose_concept(name: 'lex-exact', category: :cognition, description: 'original', enrich: false)
+          allow(mock_chat).to receive(:ask)
+          result = proposer.propose_concept(name: 'lex-exact', category: :memory, description: 'different desc')
+          expect(result[:error]).to eq(:redundant)
+          expect(mock_chat).not_to have_received(:ask)
+        end
+      end
+    end
   end
 
   describe '.evaluate_proposal' do
