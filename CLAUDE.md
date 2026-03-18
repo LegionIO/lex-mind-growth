@@ -11,7 +11,7 @@ Autonomous cognitive architecture expansion for LegionIO. Analyzes the current e
 ## Gem Info
 
 - **Gem name**: `lex-mind-growth`
-- **Version**: `0.1.0`
+- **Version**: `0.1.1`
 - **Module**: `Legion::Extensions::MindGrowth`
 - **Ruby**: `>= 3.4`
 - **License**: MIT
@@ -56,7 +56,7 @@ lib/legion/extensions/mind_growth/
 - `error_penalty: -0.15`, `latency_penalty: -0.05`
 - `PRUNE_THRESHOLD`: `0.2`, `IMPROVEMENT_THRESHOLD`: `0.4`
 
-**Build pipeline**: `MAX_FIX_ATTEMPTS: 3`, `BUILD_TIMEOUT_MS: 600_000` (10 minutes, defined but not enforced)
+**Build pipeline**: `MAX_FIX_ATTEMPTS: 3`, `BUILD_TIMEOUT_MS: 600_000` (10 minutes)
 
 **Reference cognitive models**: `[:global_workspace, :free_energy, :dual_process, :somatic_marker, :working_memory]`
 
@@ -197,7 +197,7 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 - All five runners use `extend self` — they are module singletons, not class instances
 - `Client` delegates to all five runner modules via method forwarding (`def method(**) = Runners::Module.method(**)`)
 - Build stages use graceful degradation: each checks `defined?()` for its dependency module and falls back to a stub if unavailable. All five stages are now wired — `implement` checks `Legion::LLM.started?` and falls back to a stub when legion-llm is not loaded or not started.
-- `BUILD_TIMEOUT_MS = 600_000` is defined but not enforced — there is no actual timeout in `BuildPipeline`
+- `BUILD_TIMEOUT_MS = 600_000` is enforced: `advance!` checks `timed_out?` before processing and transitions to `:failed` when elapsed time exceeds the budget
 - `propose_concept` when given no `name:` generates a random hex name (`lex-xxxxxxxx`); `derive_module_name` strips the `lex-` prefix and capitalizes segments (e.g., `lex-working-memory` -> `WorkingMemory`)
 - `suggest_category` compares actual proposal category distribution against `TARGET_DISTRIBUTION` and picks the category with the largest gap; with no proposals, defaults to `:cognition` (highest target at 0.30)
 - `enrich_proposal` uses `Legion::LLM` to generate helpers, runner_methods, metaphor, and rationale from the proposal description; parses the JSON response with graceful fallback to empty on parse errors or LLM unavailability

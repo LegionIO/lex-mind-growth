@@ -21,6 +21,12 @@ module Legion
           def advance!(result)
             return if complete? || failed?
 
+            if timed_out?
+              @errors << { stage: @stage, error: 'build timeout exceeded', at: Time.now.utc }
+              @stage = :failed
+              return
+            end
+
             if result[:success]
               @artifacts[@stage] = result
               next_idx      = STAGES.index(@stage) + 1
@@ -38,6 +44,10 @@ module Legion
 
           def failed?
             @stage == :failed
+          end
+
+          def timed_out?
+            duration_ms >= Helpers::Constants::BUILD_TIMEOUT_MS
           end
 
           def to_h

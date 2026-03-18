@@ -58,3 +58,6 @@ Naming/PredicateMethod:
 
 Naming/PredicatePrefix:
   Enabled: false
+
+Gemspec/DevelopmentDependencies:
+  Enabled: false

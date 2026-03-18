@@ -118,6 +118,35 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::BuildPipeline do
     end
   end
 
+  describe '#timed_out?' do
+    it 'returns false when within time budget' do
+      expect(pipeline.timed_out?).to be false
+    end
+
+    it 'returns true when duration exceeds BUILD_TIMEOUT_MS' do
+      pipeline.instance_variable_set(:@started_at, Time.now.utc - 700)
+      expect(pipeline.timed_out?).to be true
+    end
+
+    it 'transitions to failed on advance! when timed out' do
+      pipeline.instance_variable_set(:@started_at, Time.now.utc - 700)
+      pipeline.advance!({ success: true })
+      expect(pipeline.stage).to eq(:failed)
+    end
+
+    it 'records timeout error message' do
+      pipeline.instance_variable_set(:@started_at, Time.now.utc - 700)
+      pipeline.advance!({ success: true })
+      expect(pipeline.errors.last[:error]).to eq('build timeout exceeded')
+    end
+
+    it 'records the stage where timeout occurred' do
+      pipeline.instance_variable_set(:@started_at, Time.now.utc - 700)
+      pipeline.advance!({ success: true })
+      expect(pipeline.errors.last[:stage]).to eq(:scaffold)
+    end
+  end
+
   describe '#complete?' do
     it 'returns false initially' do
       expect(pipeline.complete?).to be false
