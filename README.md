@@ -63,7 +63,9 @@ client.evaluate_proposal(
 )
 # => { success: true, proposal: { status: :approved, ... }, approved: true }
 
-# Build the approved extension (stages are currently stubs)
+# Build the approved extension
+# Stages delegate to lex-codegen (scaffold/validate), legion-llm (implement), lex-exec (test),
+# and lex-metacognition (register). Each stage falls back to a stub when its dependency is absent.
 client.build_extension(proposal_id: proposal_id)
 # => { success: true, pipeline: { stage: :complete, errors: [] }, proposal: { status: :passing } }
 
