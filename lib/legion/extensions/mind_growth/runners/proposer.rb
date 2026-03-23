@@ -7,13 +7,16 @@ module Legion
     module MindGrowth
       module Runners
         module Proposer
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+
           extend self
 
           def analyze_gaps(existing_extensions: nil, **)
             extensions    = existing_extensions || current_extensions
             analysis      = Helpers::CognitiveModels.gap_analysis(extensions)
             recommendations = Helpers::CognitiveModels.recommend_from_gaps(analysis)
-            Legion::Logging.debug "[mind_growth:proposer] gap analysis: #{recommendations.size} recommendations" if defined?(Legion::Logging)
+            log.debug "[mind_growth:proposer] gap analysis: #{recommendations.size} recommendations"
             { success: true, models: analysis, recommendations: recommendations.first(10) }
           rescue ArgumentError => e
             { success: false, error: e.message }
@@ -27,7 +30,7 @@ module Legion
 
             redundancy = check_redundancy(gem_name, desc)
             if redundancy[:redundant]
-              Legion::Logging.info "[mind_growth:proposer] rejected redundant: #{gem_name} (#{redundancy[:score]})" if defined?(Legion::Logging)
+              log.info "[mind_growth:proposer] rejected redundant: #{gem_name} (#{redundancy[:score]})"
               return { success: false, error: :redundant, similar_to: redundancy[:similar_to],
                        score: redundancy[:score] }
             end
@@ -46,7 +49,7 @@ module Legion
               origin:         :manual
             )
             proposal_store.store(proposal)
-            Legion::Logging.info "[mind_growth:proposer] proposed: #{proposal.name} (#{cat})" if defined?(Legion::Logging)
+            log.info "[mind_growth:proposer] proposed: #{proposal.name} (#{cat})"
             { success: true, proposal: proposal.to_h }
           rescue ArgumentError => e
             { success: false, error: e.message }
@@ -58,7 +61,7 @@ module Legion
 
             eval_scores = scores || score_with_llm(proposal) || default_scores
             proposal.evaluate!(eval_scores)
-            Legion::Logging.info "[mind_growth:proposer] evaluated #{proposal.name}: #{proposal.status}" if defined?(Legion::Logging)
+            log.info "[mind_growth:proposer] evaluated #{proposal.name}: #{proposal.status}"
             { success: true, proposal: proposal.to_h, approved: proposal.status == :approved,
               auto_approved: proposal.auto_approvable? }
           rescue ArgumentError => e
@@ -117,7 +120,7 @@ module Legion
             response = Legion::LLM.chat.ask(enrichment_prompt(name, category, description))
             parse_enrichment(response.content)
           rescue StandardError => e
-            Legion::Logging.debug "[mind_growth:proposer] LLM enrichment failed: #{e.message}" if defined?(Legion::Logging)
+            log.debug "[mind_growth:proposer] LLM enrichment failed: #{e.message}"
             {}
           end
 
@@ -161,7 +164,7 @@ module Legion
             response = Legion::LLM.chat.ask(scoring_prompt(proposal))
             parse_scores(response.content)
           rescue StandardError => e
-            Legion::Logging.debug "[mind_growth:proposer] LLM scoring failed: #{e.message}" if defined?(Legion::Logging)
+            log.debug "[mind_growth:proposer] LLM scoring failed: #{e.message}"
             nil
           end
 
@@ -224,7 +227,7 @@ module Legion
             response = Legion::LLM.chat.ask(redundancy_prompt(name, description, candidates))
             parse_redundancy(response.content)
           rescue StandardError => e
-            Legion::Logging.debug "[mind_growth:proposer] LLM redundancy check failed: #{e.message}" if defined?(Legion::Logging)
+            log.debug "[mind_growth:proposer] LLM redundancy check failed: #{e.message}"
             nil
           end
 

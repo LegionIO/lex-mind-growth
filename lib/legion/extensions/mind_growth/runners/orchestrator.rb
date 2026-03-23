@@ -5,6 +5,9 @@ module Legion
     module MindGrowth
       module Runners
         module Orchestrator
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+
           extend self
 
           def run_growth_cycle(existing_extensions: nil, base_path: nil, max_proposals: 3, force: false, **)
@@ -165,11 +168,9 @@ module Legion
           end
 
           def log_cycle_summary(trace)
-            return unless defined?(Legion::Logging)
-
             build_step = trace[:steps].find { |s| s[:step] == :build }
             succeeded = build_step ? build_step[:succeeded] : 0
-            Legion::Logging.info "[mind_growth:orchestrator] cycle complete: #{succeeded} extensions built"
+            log.info "[mind_growth:orchestrator] cycle complete: #{succeeded} extensions built"
           end
         end
       end

@@ -5,6 +5,9 @@ module Legion
     module MindGrowth
       module Runners
         module Builder
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+
           extend self
 
           def build_extension(proposal_id:, base_path: nil, **)
@@ -22,7 +25,7 @@ module Legion
             run_stage(pipeline, :register,  -> { register_stage(proposal) }) unless pipeline.failed?
 
             proposal.transition!(pipeline.complete? ? :passing : :build_failed)
-            Legion::Logging.info "[mind_growth:builder] #{proposal.name}: #{pipeline.stage}" if defined?(Legion::Logging)
+            log.info "[mind_growth:builder] #{proposal.name}: #{pipeline.stage}"
             { success: pipeline.complete?, pipeline: pipeline.to_h, proposal: proposal.to_h }
           rescue ArgumentError => e
             { success: false, error: e.message }
