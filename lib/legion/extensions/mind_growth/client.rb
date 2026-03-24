@@ -91,6 +91,15 @@ module Legion
         def resolve_disagreement(**) = Runners::ConsensusBuilder.resolve_disagreement(**)
         def consensus_summary(**) = Runners::ConsensusBuilder.consensus_summary(**)
 
+        # CompetitiveEvolver delegation
+        def create_competition(**)    = Runners::CompetitiveEvolver.create_competition(**)
+        def run_trial(**)             = Runners::CompetitiveEvolver.run_trial(**)
+        def compare_results(**)       = Runners::CompetitiveEvolver.compare_results(**)
+        def declare_winner(**)        = Runners::CompetitiveEvolver.declare_winner(**)
+        def competition_status(**)    = Runners::CompetitiveEvolver.competition_status(**)
+        def active_competitions(**)   = Runners::CompetitiveEvolver.active_competitions(**)
+        def competition_history(**)   = Runners::CompetitiveEvolver.competition_history(**)
+
         # Dashboard delegation
         def extension_timeline(**) = Runners::Dashboard.extension_timeline(**)
         def category_distribution(**) = Runners::Dashboard.category_distribution(**)

@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-24
+
+### Added
+- Phase 6.3 Competitive Evolution: `Runners::CompetitiveEvolver` module with seven methods
+- `create_competition` — registers a competition between 2+ proposals for a specific cognitive gap; thread-safe in-memory store
+- `run_trial` — records trial results for a competing extension using FitnessEvaluator; auto-transitions to :active on first trial
+- `compare_results` — ranks all trial entries by fitness (descending) with latency tiebreaker; returns leader
+- `declare_winner` — selects highest-fitness extension as winner; prunes losers via Evolver.replace_extension; transitions to :decided
+- `competition_status` — returns competition details including gap, status, competitors, trial count, and winner
+- `active_competitions` — lists all pending/active/evaluating competitions
+- `competition_history` — returns recent competitions sorted by creation time with winner and trial count
+- Delegation for all seven new public methods added to `Client`
+- 37 new specs covering competitions, trials, ranking, winner declaration, thread safety, and edge cases
+
 ## [0.2.0] - 2026-03-24
 
 ### Added
