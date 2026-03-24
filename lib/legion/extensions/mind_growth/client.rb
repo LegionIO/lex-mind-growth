@@ -30,6 +30,11 @@ module Legion
         # Orchestrator delegation
         def run_growth_cycle(**) = Runners::Orchestrator.run_growth_cycle(**)
         def growth_status(**)    = Runners::Orchestrator.growth_status(**)
+
+        # Retrospective delegation
+        def session_report(**)      = Runners::Retrospective.session_report(**)
+        def trend_analysis(**)      = Runners::Retrospective.trend_analysis(**)
+        def learning_extraction(**) = Runners::Retrospective.learning_extraction(**)
       end
     end
   end

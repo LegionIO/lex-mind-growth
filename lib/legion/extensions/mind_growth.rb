@@ -17,6 +17,7 @@ require 'legion/extensions/mind_growth/runners/validator'
 require 'legion/extensions/mind_growth/runners/orchestrator'
 require 'legion/extensions/mind_growth/runners/wirer'
 require 'legion/extensions/mind_growth/runners/integration_tester'
+require 'legion/extensions/mind_growth/runners/retrospective'
 require 'legion/extensions/mind_growth/client'
 
 module Legion

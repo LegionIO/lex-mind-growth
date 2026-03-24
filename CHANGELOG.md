@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-03-24
+
+### Added
+- Phase 5.3 Retrospective Analysis: `Runners::Retrospective` module with three methods
+- `session_report` — generates a summary of growth activity (proposals by status, recent builds, failures, in-progress)
+- `trend_analysis` — returns snapshot metrics (extension count, coverage, avg fitness, healthy/prune/improvement counts) suitable for time-series storage
+- `learning_extraction` — identifies patterns from build failures (category stats, failure patterns, recommendations to avoid/focus/investigate categories)
+- Delegation for all three methods added to `Client`
+- 64 new specs covering all three runner methods with empty-store, live-data, and stub scenarios
+
 ## [0.1.5] - 2026-03-24
 
 ### Added
