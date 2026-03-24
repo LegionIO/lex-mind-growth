@@ -11,7 +11,7 @@ Autonomous cognitive architecture expansion for LegionIO. Analyzes the current e
 ## Gem Info
 
 - **Gem name**: `lex-mind-growth`
-- **Version**: `0.1.1`
+- **Version**: `0.1.6`
 - **Module**: `Legion::Extensions::MindGrowth`
 - **Ruby**: `>= 3.4`
 - **License**: MIT
@@ -28,11 +28,15 @@ lib/legion/extensions/mind_growth/
     cognitive_models.rb    # CognitiveModels module — 5 reference models and gap analysis
     build_pipeline.rb      # BuildPipeline class — staged build with error tracking
     fitness_evaluator.rb   # FitnessEvaluator module — fitness scoring for live extensions
+    phase_allocator.rb     # PhaseAllocator module — phase allocation heuristic for wiring
   runners/
     proposer.rb            # Proposer — gap analysis, proposal creation, evaluation
     analyzer.rb            # Analyzer — cognitive profile, weak link identification
     builder.rb             # Builder — build pipeline execution
     validator.rb           # Validator — proposal and score validation
+    wirer.rb               # Wirer — auto-wiring extensions into tick phases
+    integration_tester.rb  # IntegrationTester — tick simulation with wired extensions
+    retrospective.rb       # Retrospective — session report, trend analysis, learning extraction
   client.rb
 ```
 
@@ -107,6 +111,10 @@ Stages: `[:scaffold, :implement, :test, :validate, :register, :complete, :failed
 - `complete?` / `failed?` — stage checks
 - `duration_ms` — elapsed time since start
 
+### `Helpers::PhaseAllocator`
+
+Maps extension categories to tick phases. Used by `Runners::Wirer` to determine the appropriate tick phase for a given extension before wiring it into the cycle.
+
 ### `Helpers::FitnessEvaluator`
 
 Scores live extensions by weighted formula.
@@ -178,6 +186,31 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 
 **Auto-approve governance gate**: By default, only proposals with all dimension scores >= `AUTO_APPROVE_THRESHOLD` (0.9) are built automatically. Proposals that pass evaluation (>= 0.6) but don't meet the auto-approve threshold are held for governance review — the cycle succeeds but reports them as `held_for_review` in the evaluate step and `held` in the build step. Pass `force: true` to build all approved proposals regardless of auto-approve status. The evaluate step trace includes `auto_approved`, `approved` (held), and `rejected` counts.
 
+### `Runners::Wirer`
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `analyze_fit` | `extension:` | fit analysis result |
+| `wire_extension` | `extension:`, `phase:` | wiring result |
+| `unwire_extension` | `extension:` | unwire result |
+| `list_wired` | — | list of currently wired extensions |
+
+### `Runners::IntegrationTester`
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `test_tick_with_extension` | `extension:`, `mode:` | tick simulation result |
+| `test_cross_extension` | `extension_a:`, `extension_b:` | cross-extension test result |
+| `benchmark_tick` | `with_extension:` | benchmark result |
+
+### `Runners::Retrospective`
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `session_report` | — | full session summary |
+| `trend_analysis` | — | trend data across sessions |
+| `learning_extraction` | — | extracted learnings from session history |
+
 ## Actors
 
 ### `Actor::GrowthCycle`
@@ -195,7 +228,7 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 ## Development Notes
 
 - All five runners use `extend self` — they are module singletons, not class instances
-- `Client` delegates to all five runner modules via method forwarding (`def method(**) = Runners::Module.method(**)`)
+- `Client` delegates to all eight runner modules (Proposer, Analyzer, Builder, Validator, Orchestrator, Wirer, IntegrationTester, Retrospective) via method forwarding (`def method(**) = Runners::Module.method(**)`)
 - Build stages use graceful degradation: each checks `defined?()` for its dependency module and falls back to a stub if unavailable. All five stages are now wired — `implement` checks `Legion::LLM.started?` and falls back to a stub when legion-llm is not loaded or not started.
 - `BUILD_TIMEOUT_MS = 600_000` is enforced: `advance!` checks `timed_out?` before processing and transitions to `:failed` when elapsed time exceeds the budget
 - `propose_concept` when given no `name:` generates a random hex name (`lex-xxxxxxxx`); `derive_module_name` strips the `lex-` prefix and capitalizes segments (e.g., `lex-working-memory` -> `WorkingMemory`)
