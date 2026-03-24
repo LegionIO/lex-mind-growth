@@ -24,6 +24,8 @@ require 'legion/extensions/mind_growth/helpers/composition_map'
 require 'legion/extensions/mind_growth/runners/monitor'
 require 'legion/extensions/mind_growth/runners/composer'
 require 'legion/extensions/mind_growth/runners/dream_ideation'
+require 'legion/extensions/mind_growth/runners/evolver'
+require 'legion/extensions/mind_growth/runners/dashboard'
 require 'legion/extensions/mind_growth/client'
 
 module Legion

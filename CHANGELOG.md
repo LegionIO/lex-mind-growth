@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-03-24
+
+### Added
+- Phase 5.2 Evolutionary Pressure: `Runners::Evolver` module with five methods
+- `select_for_improvement` — ranks all extensions by fitness and returns the bottom N; skips extensions in `:building` or `:testing` status
+- `propose_improvement` — analyzes a low-scoring extension for weaknesses (low_invocations, high_error_rate, high_latency, low_impact) and returns targeted improvement suggestions; enriches via LLM when available
+- `replace_extension` — marks an extension as `:pruned` in the status store and records its replacement proposal ID
+- `merge_extensions` — proposes a new extension that combines two overlapping ones via `Proposer.propose_concept`
+- `evolution_summary` — aggregates improvement candidates, prune candidates, speciation candidates, and fitness distribution (min/max/mean/median) for a set of extensions
+- Phase 7.3 Dashboard Data: `Runners::Dashboard` module with seven methods
+- `extension_timeline` — stub time series returning current extension count at today's date
+- `category_distribution` — counts extensions per cognitive category; initialises all CATEGORIES to zero before counting
+- `build_metrics` — reads `ProposalStore` stats and computes build success rate and approval rate
+- `top_extensions` — returns the top N highest-fitness extensions with name, invocation_count, and fitness
+- `bottom_extensions` — returns the bottom N lowest-fitness extensions (pruning candidates)
+- `recent_proposals` — delegates to `Proposer.list_proposals` with configurable limit
+- `full_dashboard` — aggregates all six sub-methods plus `Monitor.health_summary` and a UTC timestamp into one response
+- Delegation for all twelve new public methods added to `Client`
+- 57 new specs covering both runners with happy paths, edge cases, sorting correctness, and empty-input handling
+
 ## [0.1.8] - 2026-03-24
 
 ### Added

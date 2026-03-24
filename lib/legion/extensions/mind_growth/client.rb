@@ -68,6 +68,22 @@ module Legion
         def generate_dream_proposals(**) = Runners::DreamIdeation.generate_dream_proposals(**)
         def dream_agenda_items(**)       = Runners::DreamIdeation.dream_agenda_items(**)
         def enrich_from_dream_context(**) = Runners::DreamIdeation.enrich_from_dream_context(**)
+
+        # Evolver delegation
+        def select_for_improvement(**) = Runners::Evolver.select_for_improvement(**)
+        def propose_improvement(**)    = Runners::Evolver.propose_improvement(**)
+        def replace_extension(**)      = Runners::Evolver.replace_extension(**)
+        def merge_extensions(**)       = Runners::Evolver.merge_extensions(**)
+        def evolution_summary(**)      = Runners::Evolver.evolution_summary(**)
+
+        # Dashboard delegation
+        def extension_timeline(**)     = Runners::Dashboard.extension_timeline(**)
+        def category_distribution(**) = Runners::Dashboard.category_distribution(**)
+        def build_metrics(**)          = Runners::Dashboard.build_metrics(**)
+        def top_extensions(**)         = Runners::Dashboard.top_extensions(**)
+        def bottom_extensions(**)      = Runners::Dashboard.bottom_extensions(**)
+        def recent_proposals(**)       = Runners::Dashboard.recent_proposals(**)
+        def full_dashboard(**)         = Runners::Dashboard.full_dashboard(**)
       end
     end
   end
