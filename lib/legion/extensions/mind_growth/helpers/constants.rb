@@ -58,6 +58,10 @@ module Legion
           HEALTH_LEVELS = { excellent: 0.8, good: 0.6, fair: 0.4, degraded: 0.2, critical: 0.0 }.freeze
           DECAY_INVOCATION_THRESHOLD = 5
 
+          # Swarm consensus
+          CONSENSUS_THRESHOLD               = 0.67
+          DISAGREEMENT_ESCALATION_THRESHOLD = 0.5
+
           # Risk assessment
           RISK_TIERS = %i[low medium high critical].freeze
           RISK_RECOMMENDATIONS = {

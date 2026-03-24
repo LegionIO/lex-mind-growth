@@ -76,8 +76,23 @@ module Legion
         def merge_extensions(**)       = Runners::Evolver.merge_extensions(**)
         def evolution_summary(**)      = Runners::Evolver.evolution_summary(**)
 
+        # SwarmBuilder delegation
+        def create_build_swarm(**)    = Runners::SwarmBuilder.create_build_swarm(**)
+        def join_build_swarm(**)      = Runners::SwarmBuilder.join_build_swarm(**)
+        def execute_swarm_build(**)   = Runners::SwarmBuilder.execute_swarm_build(**)
+        def complete_build_swarm(**) = Runners::SwarmBuilder.complete_build_swarm(**)
+        def swarm_build_status(**)    = Runners::SwarmBuilder.swarm_build_status(**)
+        def active_build_swarms(**)   = Runners::SwarmBuilder.active_build_swarms(**)
+
+        # ConsensusBuilder delegation
+        def propose_to_swarm(**)    = Runners::ConsensusBuilder.propose_to_swarm(**)
+        def vote_in_swarm(**)       = Runners::ConsensusBuilder.vote_in_swarm(**)
+        def tally_swarm_votes(**)   = Runners::ConsensusBuilder.tally_swarm_votes(**)
+        def resolve_disagreement(**) = Runners::ConsensusBuilder.resolve_disagreement(**)
+        def consensus_summary(**) = Runners::ConsensusBuilder.consensus_summary(**)
+
         # Dashboard delegation
-        def extension_timeline(**)     = Runners::Dashboard.extension_timeline(**)
+        def extension_timeline(**) = Runners::Dashboard.extension_timeline(**)
         def category_distribution(**) = Runners::Dashboard.category_distribution(**)
         def build_metrics(**)          = Runners::Dashboard.build_metrics(**)
         def top_extensions(**)         = Runners::Dashboard.top_extensions(**)

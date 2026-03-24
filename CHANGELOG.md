@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-24
+
+### Added
+- Phase 6.1 Swarm-Based Building: `Runners::SwarmBuilder` module with six methods
+- `create_build_swarm` — creates a lex-swarm charter for one of four mind-growth activity types (concept_exploration, parallel_build, adversarial_review, integration_sweep); stores proposal_ids in swarm workspace; returns `{ success: false, reason: :swarm_unavailable }` when lex-swarm is not loaded
+- `join_build_swarm` — delegates agent join to `Swarm::Runners::Swarm.join_swarm`
+- `execute_swarm_build` — dispatches to the correct runner pipeline based on charter type: concept_exploration calls Proposer, parallel_build calls Builder, adversarial_review calls Validator, integration_sweep calls IntegrationTester in consecutive pairs
+- `complete_build_swarm` — delegates to `Swarm.complete_swarm` with configurable outcome
+- `swarm_build_status` — returns swarm status and current workspace key list
+- `active_build_swarms` — lists active charters whose name begins with `mind-growth-`, filtered from all active swarms
+- Phase 6.2 Distributed Consensus: `Runners::ConsensusBuilder` module with five methods
+- `propose_to_swarm` — stores proposal in swarm workspace under `pending_proposals` key; falls back to `Governance.submit_proposal` when lex-swarm workspace is unavailable
+- `vote_in_swarm` — records `:approve` or `:reject` votes in workspace under `votes:<proposal_id>` key; validates vote value regardless of workspace availability
+- `tally_swarm_votes` — reads votes from workspace, tallies approve/reject, returns `:approved` / `:rejected` / `:no_consensus` based on `CONSENSUS_THRESHOLD` (0.67)
+- `resolve_disagreement` — returns `:escalated_to_human` when approve ratio is >= `DISAGREEMENT_ESCALATION_THRESHOLD` (0.5) but below `CONSENSUS_THRESHOLD`; otherwise `:rejected_by_default`
+- `consensus_summary` — aggregates all pending proposals and their vote status into `decided` and `pending` arrays
+- New constants in `Helpers::Constants`: `CONSENSUS_THRESHOLD = 0.67`, `DISAGREEMENT_ESCALATION_THRESHOLD = 0.5`
+- Delegation for all eleven new public methods added to `Client`
+
 ## [0.1.9] - 2026-03-24
 
 ### Added

@@ -26,6 +26,8 @@ require 'legion/extensions/mind_growth/runners/composer'
 require 'legion/extensions/mind_growth/runners/dream_ideation'
 require 'legion/extensions/mind_growth/runners/evolver'
 require 'legion/extensions/mind_growth/runners/dashboard'
+require 'legion/extensions/mind_growth/runners/swarm_builder'
+require 'legion/extensions/mind_growth/runners/consensus_builder'
 require 'legion/extensions/mind_growth/client'
 
 module Legion
