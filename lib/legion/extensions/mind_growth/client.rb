@@ -47,6 +47,27 @@ module Legion
         # RiskAssessor delegation
         def assess_risk(**)   = Runners::RiskAssessor.assess_risk(**)
         def risk_summary(**)  = Runners::RiskAssessor.risk_summary(**)
+
+        # Monitor delegation
+        def health_check(**)    = Runners::Monitor.health_check(**)
+        def usage_stats(**)     = Runners::Monitor.usage_stats(**)
+        def impact_score(**)    = Runners::Monitor.impact_score(**)
+        def decay_check(**)     = Runners::Monitor.decay_check(**)
+        def auto_prune(**)      = Runners::Monitor.auto_prune(**)
+        def health_summary(**)  = Runners::Monitor.health_summary(**)
+
+        # Composer delegation
+        def add_composition(**)      = Runners::Composer.add_composition(**)
+        def remove_composition(**)   = Runners::Composer.remove_composition(**)
+        def evaluate_output(**)      = Runners::Composer.evaluate_output(**)
+        def composition_stats(**)    = Runners::Composer.composition_stats(**)
+        def suggest_compositions(**) = Runners::Composer.suggest_compositions(**)
+        def list_compositions(**)    = Runners::Composer.list_compositions(**)
+
+        # DreamIdeation delegation
+        def generate_dream_proposals(**) = Runners::DreamIdeation.generate_dream_proposals(**)
+        def dream_agenda_items(**)       = Runners::DreamIdeation.dream_agenda_items(**)
+        def enrich_from_dream_context(**) = Runners::DreamIdeation.enrich_from_dream_context(**)
       end
     end
   end

@@ -54,6 +54,10 @@ module Legion
           REJECTION_COOLDOWN_HOURS = 24
           GOVERNANCE_STATUSES      = %i[pending approved rejected expired].freeze
 
+          # Health monitoring
+          HEALTH_LEVELS = { excellent: 0.8, good: 0.6, fair: 0.4, degraded: 0.2, critical: 0.0 }.freeze
+          DECAY_INVOCATION_THRESHOLD = 5
+
           # Risk assessment
           RISK_TIERS = %i[low medium high critical].freeze
           RISK_RECOMMENDATIONS = {

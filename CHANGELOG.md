@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-03-24
+
+### Added
+- Phase 5.1 Health Monitoring: `Runners::Monitor` module with six methods
+- `health_check` — classifies a single extension's fitness into five health levels (excellent/good/fair/degraded/critical); sets alert flag for degraded or critical
+- `usage_stats` — returns per-extension invocation count, error rate, and average latency for a list of extensions
+- `impact_score` — extracts the impact component from an extension and computes rank percentile when a comparison list is provided
+- `decay_check` — identifies extensions with fewer than `DECAY_INVOCATION_THRESHOLD` invocations or fitness below `PRUNE_THRESHOLD`
+- `auto_prune` — delegates to `FitnessEvaluator.prune_candidates`; returns candidates (does not unwire)
+- `health_summary` — full dashboard: per-health-level counts, alert list, and prune candidates for a set of extensions
+- Phase 4.3 Composition Rules: `Helpers::CompositionMap` module with thread-safe rule storage and `Runners::Composer` module
+- `CompositionMap` — stores composition rules keyed by UUID; supports add/remove/query by source/match against output hash; exposes stats
+- `add_composition` / `remove_composition` — delegate to `CompositionMap`
+- `evaluate_output` — finds matching rules for an extension's output and builds dispatch plans (no actual dispatch)
+- `composition_stats` — returns total rules and per-source/per-target breakdowns
+- `suggest_compositions` — heuristic category-flow suggestions (perception->cognition, cognition->memory, etc.) with LLM guard
+- `list_compositions` — returns all stored rules with count
+- Phase 1.3 Dream Ideation: `Runners::DreamIdeation` module with three methods
+- `generate_dream_proposals` — runs gap analysis, creates proposals with `origin: :dream`, applies `DREAM_NOVELTY_BONUS`
+- `dream_agenda_items` — formats agenda items compatible with Dream::Helpers::Agenda; weight based on category underrepresentation
+- `enrich_from_dream_context` — injects dream-cycle associations into an existing proposal's rationale
+- New constants in `Helpers::Constants`: `HEALTH_LEVELS`, `DECAY_INVOCATION_THRESHOLD`
+- Delegation for all fifteen new public methods added to `Client`
+- 88 new specs covering all three features with happy paths, edge cases, and thread safety
+
 ## [0.1.7] - 2026-03-24
 
 ### Added
