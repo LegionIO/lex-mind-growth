@@ -1,17 +1,26 @@
 # lex-mind-growth
 
+**Version**: 0.2.1
+
 A LegionIO cognitive architecture extension for autonomous cognitive expansion. Analyzes the current extension ecosystem against five reference cognitive models (Global Workspace, Free Energy Principle, Dual Process, Somatic Marker, Working Memory), identifies capability gaps, proposes new extensions to address them, evaluates proposals through a multi-dimensional scoring pipeline, and manages a staged build lifecycle for approved proposals.
+
+All 25 phases of the mind growth roadmap are complete.
 
 ## What It Does
 
-Provides a four-phase growth loop for the cognitive architecture:
+Provides an autonomous growth loop for the cognitive architecture across multiple dimensions:
 
 1. **Analyze** — compare loaded extensions against reference model requirements to find gaps
-2. **Propose** — generate concept proposals for missing capabilities, scored on novelty, fit, cognitive value, implementability, and composability
-3. **Build** — execute the staged build pipeline (scaffold, implement, test, validate, register)
+2. **Propose** — generate concept proposals for missing capabilities, scored on novelty, fit, cognitive value, implementability, and composability. Optional LLM enrichment and redundancy checking.
+3. **Build** — execute the staged build pipeline (scaffold, implement, test, validate, register). Stages delegate to real implementations (`lex-codegen`, `legion-llm`, `lex-exec`) and fall back to stubs when unavailable.
 4. **Validate** — confirm proposal structure and fitness of live extensions
-
-Also evaluates the fitness of existing extensions based on invocation rate, impact, health, error rate, and latency — identifying candidates for pruning or improvement.
+5. **Govern** — vote-based governance with quorum, cooldown, and risk tiers
+6. **Monitor** — health scoring, usage stats, decay detection, and auto-pruning
+7. **Evolve** — evolutionary pressure: select weak extensions for improvement, merge, replace. Competitive tournament evolution (v0.2.1).
+8. **Swarm** — coordinate multi-agent build swarms with consensus voting (v0.2.0)
+9. **Introspect** — retrospective session reports, trend analysis, and learning extraction
+10. **CLI** — `legion mind-growth` with 10 subcommands (v0.2.1 via LegionIO)
+11. **MCP Tools** — 6 `legion.mind_growth_*` tools via legion-mcp (v0.2.1)
 
 ## Usage
 

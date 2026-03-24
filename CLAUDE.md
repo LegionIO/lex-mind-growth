@@ -11,7 +11,7 @@ Autonomous cognitive architecture expansion for LegionIO. Analyzes the current e
 ## Gem Info
 
 - **Gem name**: `lex-mind-growth`
-- **Version**: `0.1.9`
+- **Version**: `0.2.1`
 - **Module**: `Legion::Extensions::MindGrowth`
 - **Ruby**: `>= 3.4`
 - **License**: MIT
@@ -44,6 +44,7 @@ lib/legion/extensions/mind_growth/
     composer.rb            # Composer — cross-extension composition rules and evaluation
     dream_ideation.rb      # DreamIdeation — dream cycle integration for gap-based proposals
     evolver.rb             # Evolver — evolutionary pressure, improvement selection, merging
+    competitive_evolver.rb # CompetitiveEvolver — tournament-style competition between proposals
     dashboard.rb           # Dashboard — formatted data aggregation for UI
   client.rb
 ```
@@ -297,6 +298,45 @@ Dream-originated proposals get tagged `origin: :dream` with DREAM_NOVELTY_BONUS 
 
 Bottom 5% (BOTTOM_PERCENTILE) are candidates. Uses SUGGESTION_MAP for weakness-to-suggestion mapping. LLM-enhanced when available.
 
+### `Runners::SwarmBuilder` (v0.2.0)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `create_build_swarm` | `charter_type:, objective:, proposal_ids: []` | `{ success:, charter_id:, charter_type:, roles: }` |
+| `join_build_swarm` | `charter_id:, agent_id:, role:` | delegated to lex-swarm |
+| `execute_swarm_build` | `charter_id:` | `{ success:, charter_type:, results: }` |
+| `complete_build_swarm` | `charter_id:, outcome: :success` | delegated to lex-swarm |
+| `swarm_build_status` | `charter_id:` | `{ success:, status:, workspace_keys: }` |
+| `active_build_swarms` | — | `{ success:, swarms:, count: }` |
+
+4 charter types: `concept_exploration`, `parallel_build`, `adversarial_review`, `integration_sweep`. All methods guarded by `defined?(Legion::Extensions::Swarm::Runners::Swarm)`.
+
+### `Runners::ConsensusBuilder` (v0.2.0)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `propose_to_swarm` | `charter_id:, proposal_id:, proposer_agent_id:` | `{ success:, proposal_id: }` |
+| `vote_in_swarm` | `charter_id:, proposal_id:, voter_agent_id:, vote:` | `{ success:, vote: }` |
+| `tally_swarm_votes` | `charter_id:, proposal_id:` | `{ success:, approve_count:, reject_count:, total:, consensus: }` |
+| `resolve_disagreement` | `charter_id:, proposal_id:` | `{ success:, resolution: }` |
+| `consensus_summary` | `charter_id:` | `{ success:, proposals:, decided:, pending: }` |
+
+`CONSENSUS_THRESHOLD = 0.67`, `DISAGREEMENT_ESCALATION_THRESHOLD = 0.5`. Falls back to Governance when swarm unavailable.
+
+### `Runners::CompetitiveEvolver` (v0.2.1)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `create_competition` | `gap:, proposal_ids:` | `{ success:, competition_id:, gap:, competitors: }` |
+| `run_trial` | `competition_id:, extension:, iterations: 10` | `{ success:, competition_id:, trial: }` |
+| `compare_results` | `competition_id:` | `{ success:, comparison:, leader: }` |
+| `declare_winner` | `competition_id:` | `{ success:, winner:, losers:, competition_id: }` |
+| `competition_status` | `competition_id:` | `{ success:, id:, gap:, status:, competitors:, trial_count:, winner: }` |
+| `active_competitions` | — | `{ success:, competitions:, count: }` |
+| `competition_history` | `limit: 20` | `{ success:, competitions:, count: }` |
+
+Thread-safe in-memory competition store with Mutex. Ranks by fitness (descending) with latency tiebreaker. Losers pruned via `Evolver.replace_extension`.
+
 ### `Runners::Dashboard` (v0.1.9)
 
 | Method | Key Args | Returns |
@@ -326,7 +366,7 @@ Bottom 5% (BOTTOM_PERCENTILE) are candidates. Uses SUGGESTION_MAP for weakness-t
 ## Development Notes
 
 - All runners use `extend self` — they are module singletons, not class instances
-- `Client` delegates to all fourteen runner modules (Proposer, Analyzer, Builder, Validator, Orchestrator, Wirer, IntegrationTester, Retrospective, Governance, RiskAssessor, Monitor, Composer, DreamIdeation, Evolver, Dashboard) via method forwarding (`def method(**) = Runners::Module.method(**)`)
+- `Client` delegates to all eighteen runner modules (Proposer, Analyzer, Builder, Validator, Orchestrator, Wirer, IntegrationTester, Retrospective, Governance, RiskAssessor, Monitor, Composer, DreamIdeation, Evolver, SwarmBuilder, ConsensusBuilder, CompetitiveEvolver, Dashboard) via method forwarding (`def method(**) = Runners::Module.method(**)`)
 - Build stages use graceful degradation: each checks `defined?()` for its dependency module and falls back to a stub if unavailable. All five stages are now wired — `implement` checks `Legion::LLM.started?` and falls back to a stub when legion-llm is not loaded or not started.
 - `BUILD_TIMEOUT_MS = 600_000` is enforced: `advance!` checks `timed_out?` before processing and transitions to `:failed` when elapsed time exceeds the budget
 - `propose_concept` when given no `name:` generates a random hex name (`lex-xxxxxxxx`); `derive_module_name` strips the `lex-` prefix and capitalizes segments (e.g., `lex-working-memory` -> `WorkingMemory`)
@@ -342,3 +382,4 @@ Bottom 5% (BOTTOM_PERCENTILE) are candidates. Uses SUGGESTION_MAP for weakness-t
 - DreamIdeation integrates with lex-agentic-imagination dream cycle via defined?() guard (v0.1.7 hook)
 - Evolver uses SUGGESTION_MAP hash for weakness-to-suggestion mapping; optional LLM enrichment via defined?() guard
 - Dashboard aggregates data from Monitor, Proposer, Analyzer, and FitnessEvaluator into UI-ready formats
+- CompetitiveEvolver maintains a thread-safe Mutex-protected in-memory competition store; `declare_winner` triggers `Evolver.replace_extension` for each loser, integrating competitive selection directly into the evolutionary pipeline
