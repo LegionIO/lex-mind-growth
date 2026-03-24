@@ -20,6 +20,12 @@
 - `consensus_summary` — aggregates all pending proposals and their vote status into `decided` and `pending` arrays
 - New constants in `Helpers::Constants`: `CONSENSUS_THRESHOLD = 0.67`, `DISAGREEMENT_ESCALATION_THRESHOLD = 0.5`
 - Delegation for all eleven new public methods added to `Client`
+- 73 new specs covering both runners
+
+### Fixed
+- All `workspace_put` calls now include required `author:` parameter matching lex-swarm API
+- All `workspace_get` result access uses `.dig(:entry, :value)` matching lex-swarm runner response format
+- `resolve_charter_type` now matches underscore-style swarm names (consistent with `create_build_swarm`)
 
 ## [0.1.9] - 2026-03-24
 
