@@ -35,6 +35,18 @@ module Legion
         def session_report(**)      = Runners::Retrospective.session_report(**)
         def trend_analysis(**)      = Runners::Retrospective.trend_analysis(**)
         def learning_extraction(**) = Runners::Retrospective.learning_extraction(**)
+
+        # Governance delegation
+        def submit_proposal(**)    = Runners::Governance.submit_proposal(**)
+        def vote_on_proposal(**)   = Runners::Governance.vote_on_proposal(**)
+        def tally_votes(**)        = Runners::Governance.tally_votes(**)
+        def approve_proposal(**)   = Runners::Governance.approve_proposal(**)
+        def reject_proposal(**)    = Runners::Governance.reject_proposal(**)
+        def governance_stats(**)   = Runners::Governance.governance_stats(**)
+
+        # RiskAssessor delegation
+        def assess_risk(**)   = Runners::RiskAssessor.assess_risk(**)
+        def risk_summary(**)  = Runners::RiskAssessor.risk_summary(**)
       end
     end
   end

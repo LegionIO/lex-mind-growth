@@ -48,6 +48,20 @@ module Legion
 
           # Reference cognitive models
           COGNITIVE_MODELS = %i[global_workspace free_energy dual_process somatic_marker working_memory].freeze
+
+          # Governance
+          QUORUM                   = 3
+          REJECTION_COOLDOWN_HOURS = 24
+          GOVERNANCE_STATUSES      = %i[pending approved rejected expired].freeze
+
+          # Risk assessment
+          RISK_TIERS = %i[low medium high critical].freeze
+          RISK_RECOMMENDATIONS = {
+            low:      :auto_approve,
+            medium:   :governance,
+            high:     :human_required,
+            critical: :blocked
+          }.freeze
         end
       end
     end

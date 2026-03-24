@@ -18,6 +18,8 @@ require 'legion/extensions/mind_growth/runners/orchestrator'
 require 'legion/extensions/mind_growth/runners/wirer'
 require 'legion/extensions/mind_growth/runners/integration_tester'
 require 'legion/extensions/mind_growth/runners/retrospective'
+require 'legion/extensions/mind_growth/runners/governance'
+require 'legion/extensions/mind_growth/runners/risk_assessor'
 require 'legion/extensions/mind_growth/client'
 
 module Legion

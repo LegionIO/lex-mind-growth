@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-03-24
+
+### Added
+- Phase 2.1 Proposal Governance: `Runners::Governance` module with six methods
+- `submit_proposal` — validates proposal is in `:proposed` or `:evaluating` status, transitions to `:evaluating`
+- `vote_on_proposal` — thread-safe voting (`:approve` / `:reject`) with Mutex-protected vote store
+- `tally_votes` — counts approve/reject votes; returns `:pending` (below QUORUM=3), `:approved`, or `:rejected` verdict
+- `approve_proposal` — transitions proposal to `:approved`
+- `reject_proposal` — transitions proposal to `:rejected`, stores optional reason
+- `governance_stats` — summarises total votes, per-proposal vote breakdown, and governance status counts
+- Phase 2.2 Risk Assessment: `Runners::RiskAssessor` module with two methods
+- `assess_risk` — evaluates four risk dimensions (complexity, blast_radius, reversibility, performance_impact) and returns a risk tier (`:low`/`:medium`/`:high`/`:critical`) with recommendation
+- `risk_summary` — batch-assesses proposals (from store or explicit list), returns results grouped by tier
+- New constants in `Helpers::Constants`: `QUORUM`, `REJECTION_COOLDOWN_HOURS`, `GOVERNANCE_STATUSES`, `RISK_TIERS`, `RISK_RECOMMENDATIONS`
+- Delegation for all eight new runner methods added to `Client`
+- 113 new specs covering both runners with happy paths, error cases, thread safety, quorum logic, risk tier matrix, and edge cases
+
 ## [0.1.6] - 2026-03-24
 
 ### Added
