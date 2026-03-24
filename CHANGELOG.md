@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-03-24
+
+### Added
+- Phase 4 auto-wiring for GAIA tick integration
+- `Helpers::PhaseAllocator` — maps 23 cognitive categories to GAIA active tick phases and 8 dream cycle phases; method-name inference as fallback for unknown categories
+- `Runners::Wirer` — wires/unwires/enables/disables built extensions into the GAIA tick cycle via a local registry and GAIA rediscovery; full analyze_fit before commit
+- `Runners::IntegrationTester` — validates a wired extension is method-callable, returns a valid response, and completes within the 5000ms tick budget; benchmarks tick timing across N iterations
+- Comprehensive specs for all three new files (155 new examples across phase_allocator, wirer, and integration_tester specs)
+
 ### Changed
 - Add `caller:` identity parameters to all four LLM call sites in `runners/proposer.rb` and `runners/builder.rb` for cost attribution and routing: proposer uses phases `capability`, `score`, and `validate`; builder uses operation `build` with `intent: { capability: :reasoning }`
 
