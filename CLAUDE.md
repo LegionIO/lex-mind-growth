@@ -11,7 +11,7 @@ Autonomous cognitive architecture expansion for LegionIO. Analyzes the current e
 ## Gem Info
 
 - **Gem name**: `lex-mind-growth`
-- **Version**: `0.1.6`
+- **Version**: `0.1.9`
 - **Module**: `Legion::Extensions::MindGrowth`
 - **Ruby**: `>= 3.4`
 - **License**: MIT
@@ -29,6 +29,7 @@ lib/legion/extensions/mind_growth/
     build_pipeline.rb      # BuildPipeline class — staged build with error tracking
     fitness_evaluator.rb   # FitnessEvaluator module — fitness scoring for live extensions
     phase_allocator.rb     # PhaseAllocator module — phase allocation heuristic for wiring
+    composition_map.rb     # CompositionMap module — thread-safe composition rule storage
   runners/
     proposer.rb            # Proposer — gap analysis, proposal creation, evaluation
     analyzer.rb            # Analyzer — cognitive profile, weak link identification
@@ -37,6 +38,13 @@ lib/legion/extensions/mind_growth/
     wirer.rb               # Wirer — auto-wiring extensions into tick phases
     integration_tester.rb  # IntegrationTester — tick simulation with wired extensions
     retrospective.rb       # Retrospective — session report, trend analysis, learning extraction
+    governance.rb          # Governance — submit/vote/tally/approve/reject proposals
+    risk_assessor.rb       # RiskAssessor — 4-dimension risk assessment with tiers
+    monitor.rb             # Monitor — health check, usage stats, decay check, auto prune
+    composer.rb            # Composer — cross-extension composition rules and evaluation
+    dream_ideation.rb      # DreamIdeation — dream cycle integration for gap-based proposals
+    evolver.rb             # Evolver — evolutionary pressure, improvement selection, merging
+    dashboard.rb           # Dashboard — formatted data aggregation for UI
   client.rb
 ```
 
@@ -63,6 +71,14 @@ lib/legion/extensions/mind_growth/
 **Build pipeline**: `MAX_FIX_ATTEMPTS: 3`, `BUILD_TIMEOUT_MS: 600_000` (10 minutes)
 
 **Reference cognitive models**: `[:global_workspace, :free_energy, :dual_process, :somatic_marker, :working_memory]`
+
+**Governance**: `QUORUM: 3`, `REJECTION_COOLDOWN_HOURS: 24`, `GOVERNANCE_STATUSES: [:pending, :approved, :rejected, :expired]`
+
+**Risk tiers**: `[:low, :medium, :high, :critical]` with `RISK_RECOMMENDATIONS: { low: :auto_approve, medium: :governance, high: :human_required, critical: :blocked }`
+
+**Health levels**: `{ excellent: 0.8, good: 0.6, fair: 0.4, degraded: 0.2, critical: 0.0 }`
+
+**Evolver**: `BOTTOM_PERCENTILE: 0.05`, `SPECIATION_DRIFT_THRESHOLD: 0.5`
 
 ## Key Classes
 
@@ -211,6 +227,88 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 | `trend_analysis` | — | trend data across sessions |
 | `learning_extraction` | — | extracted learnings from session history |
 
+### `Runners::Governance` (v0.1.7)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `submit_proposal` | `proposal:` | `{ success:, proposal_id: }` |
+| `vote_on_proposal` | `proposal_id:, voter_id:, vote:, rationale:` | `{ success:, vote: }` |
+| `tally_votes` | `proposal_id:` | `{ success:, tally:, result: }` |
+| `approve_proposal` | `proposal_id:` | `{ success:, proposal: }` |
+| `reject_proposal` | `proposal_id:, reason:` | `{ success:, proposal: }` |
+| `governance_stats` | — | `{ success:, stats: }` |
+
+Thread-safe voting with Mutex. Quorum = 3. Tie votes resolve to :rejected.
+
+### `Runners::RiskAssessor` (v0.1.7)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `assess_risk` | `proposal:` | `{ success:, tier:, dimensions:, recommendation: }` |
+| `risk_summary` | `proposals:` | `{ success:, summary: }` |
+
+4 dimensions: complexity, blast_radius, reversibility, performance_impact. 4 tiers: low/medium/high/critical.
+
+### `Runners::Monitor` (v0.1.8)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `health_check` | `extension:` | `{ success:, fitness:, health_level:, alert: }` |
+| `usage_stats` | `extensions:` | `{ success:, stats:, count: }` |
+| `impact_score` | `extension:, extensions:` | `{ success:, impact:, rank_percentile: }` |
+| `decay_check` | `extensions:` | `{ success:, decayed:, count: }` |
+| `auto_prune` | `extensions:` | `{ success:, pruned:, count: }` |
+| `health_summary` | `extensions:` | `{ success:, by_health_level:, alerts:, prune_candidates: }` |
+
+Health levels: excellent (>=0.8), good (>=0.6), fair (>=0.4), degraded (>=0.2), critical (<0.2).
+
+### `Runners::Composer` (v0.1.8)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `add_composition` | `source_extension:, output_key:, target_extension:, target_method:` | `{ success:, rule_id: }` |
+| `remove_composition` | `rule_id:` | `{ success: }` |
+| `evaluate_output` | `source_extension:, output:` | `{ success:, dispatches:, count: }` |
+| `composition_stats` | — | `{ success:, total_rules:, by_source:, by_target: }` |
+| `suggest_compositions` | `extensions:` | `{ success:, suggestions:, count: }` |
+| `list_compositions` | — | `{ success:, rules:, count: }` |
+
+Uses Helpers::CompositionMap for thread-safe rule storage. Category-based suggestions with optional LLM enrichment.
+
+### `Runners::DreamIdeation` (v0.1.8)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `generate_dream_proposals` | `existing_extensions: nil, max_proposals: 2` | `{ success:, proposals:, count: }` |
+| `dream_agenda_items` | `existing_extensions: nil` | `{ success:, items:, count: }` |
+| `enrich_from_dream_context` | `proposal_id:, dream_context: {}` | `{ success:, enriched: }` |
+
+Dream-originated proposals get tagged `origin: :dream` with DREAM_NOVELTY_BONUS (0.15) applied.
+
+### `Runners::Evolver` (v0.1.9)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `select_for_improvement` | `extensions:, count: 3` | `{ success:, candidates:, total_evaluated: }` |
+| `propose_improvement` | `extension:` | `{ success:, weaknesses:, suggestions: }` |
+| `replace_extension` | `old_name:, new_proposal_id:` | `{ success:, replaced: }` |
+| `merge_extensions` | `extension_a:, extension_b:, merged_name: nil` | `{ success:, merged_proposal: }` |
+| `evolution_summary` | `extensions:` | `{ success:, improvement_candidates:, fitness_distribution: }` |
+
+Bottom 5% (BOTTOM_PERCENTILE) are candidates. Uses SUGGESTION_MAP for weakness-to-suggestion mapping. LLM-enhanced when available.
+
+### `Runners::Dashboard` (v0.1.9)
+
+| Method | Key Args | Returns |
+|---|---|---|
+| `extension_timeline` | `extensions:, days: 30` | `{ success:, series: }` |
+| `category_distribution` | `extensions:` | `{ success:, distribution:, total: }` |
+| `build_metrics` | — | `{ success:, total_proposals:, success_rate:, approval_rate: }` |
+| `top_extensions` | `extensions:, limit: 10` | `{ success:, top: }` |
+| `bottom_extensions` | `extensions:, limit: 10` | `{ success:, bottom: }` |
+| `recent_proposals` | `limit: 10` | `{ success:, proposals:, count: }` |
+| `full_dashboard` | `extensions:` | `{ success:, category_distribution:, build_metrics:, ... }` |
+
 ## Actors
 
 ### `Actor::GrowthCycle`
@@ -227,8 +325,8 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 
 ## Development Notes
 
-- All five runners use `extend self` — they are module singletons, not class instances
-- `Client` delegates to all eight runner modules (Proposer, Analyzer, Builder, Validator, Orchestrator, Wirer, IntegrationTester, Retrospective) via method forwarding (`def method(**) = Runners::Module.method(**)`)
+- All runners use `extend self` — they are module singletons, not class instances
+- `Client` delegates to all fourteen runner modules (Proposer, Analyzer, Builder, Validator, Orchestrator, Wirer, IntegrationTester, Retrospective, Governance, RiskAssessor, Monitor, Composer, DreamIdeation, Evolver, Dashboard) via method forwarding (`def method(**) = Runners::Module.method(**)`)
 - Build stages use graceful degradation: each checks `defined?()` for its dependency module and falls back to a stub if unavailable. All five stages are now wired — `implement` checks `Legion::LLM.started?` and falls back to a stub when legion-llm is not loaded or not started.
 - `BUILD_TIMEOUT_MS = 600_000` is enforced: `advance!` checks `timed_out?` before processing and transitions to `:failed` when elapsed time exceeds the budget
 - `propose_concept` when given no `name:` generates a random hex name (`lex-xxxxxxxx`); `derive_module_name` strips the `lex-` prefix and capitalizes segments (e.g., `lex-working-memory` -> `WorkingMemory`)
@@ -238,3 +336,9 @@ When a dependency is not loaded, each stage falls back to a stub that returns `{
 - `ProposalStore` max is 500 (`MAX_PROPOSALS` class constant) — enforced via LRU eviction of the oldest proposal by `created_at` when at capacity
 - `BuildPipeline` exposes `artifacts` hash via `attr_reader` and `to_h` — each successful stage stores its result hash keyed by stage name
 - `Orchestrator.propose_from_priorities` maps gap-analysis requirement names to cognitive categories via `REQUIREMENT_CATEGORIES` constant (23 mappings from the 5 reference cognitive models); unmapped requirements fall through to `suggest_category` auto-selection
+- Governance uses thread-safe Mutex-protected vote storage with quorum=3 and tie-to-reject policy
+- Monitor wraps FitnessEvaluator with health level classification (5 levels) and alert/auto-prune logic
+- CompositionMap provides thread-safe rule storage with Mutex; Composer builds dispatch plans without executing them
+- DreamIdeation integrates with lex-agentic-imagination dream cycle via defined?() guard (v0.1.7 hook)
+- Evolver uses SUGGESTION_MAP hash for weakness-to-suggestion mapping; optional LLM enrichment via defined?() guard
+- Dashboard aggregates data from Monitor, Proposer, Analyzer, and FitnessEvaluator into UI-ready formats
