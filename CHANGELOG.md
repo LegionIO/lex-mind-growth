@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Add `caller:` identity parameters to all four LLM call sites in `runners/proposer.rb` and `runners/builder.rb` for cost attribution and routing: proposer uses phases `capability`, `score`, and `validate`; builder uses operation `build` with `intent: { capability: :reasoning }`
+
 ## [0.1.3] - 2026-03-22
 
 ### Changed

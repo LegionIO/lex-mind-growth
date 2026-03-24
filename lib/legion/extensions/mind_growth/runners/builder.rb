@@ -181,7 +181,7 @@ module Legion
           def implement_file(file_path, proposal)
             stub_content = ::File.read(file_path)
 
-            chat = Legion::LLM.chat
+            chat = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'build' }, intent: { capability: :reasoning })
             chat.with_instructions(implementation_instructions)
             response = chat.ask(file_implementation_prompt(stub_content, proposal))
             code = extract_ruby_code(response.content)

@@ -117,7 +117,8 @@ module Legion
           def enrich_proposal(name, category, description)
             return {} unless llm_available?
 
-            response = Legion::LLM.chat.ask(enrichment_prompt(name, category, description))
+            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose',
+phase: 'capability' }).ask(enrichment_prompt(name, category, description))
             parse_enrichment(response.content)
           rescue StandardError => e
             log.debug "[mind_growth:proposer] LLM enrichment failed: #{e.message}"
@@ -161,7 +162,7 @@ module Legion
           def score_with_llm(proposal)
             return nil unless llm_available?
 
-            response = Legion::LLM.chat.ask(scoring_prompt(proposal))
+            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose', phase: 'score' }).ask(scoring_prompt(proposal))
             parse_scores(response.content)
           rescue StandardError => e
             log.debug "[mind_growth:proposer] LLM scoring failed: #{e.message}"
@@ -224,7 +225,8 @@ module Legion
             return nil unless llm_available?
 
             candidates = existing.last(20).map { |p| { name: p.name, description: p.description } }
-            response = Legion::LLM.chat.ask(redundancy_prompt(name, description, candidates))
+            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose',
+phase: 'validate' }).ask(redundancy_prompt(name, description, candidates))
             parse_redundancy(response.content)
           rescue StandardError => e
             log.debug "[mind_growth:proposer] LLM redundancy check failed: #{e.message}"
