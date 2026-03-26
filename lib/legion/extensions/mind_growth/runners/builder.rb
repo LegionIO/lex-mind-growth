@@ -83,9 +83,11 @@ module Legion
           end
 
           # --- Implement Stage ---
-          # Delegates to legion-llm when loaded and started; stubs otherwise
+          # Delegates to lex-codegen FromGap when loaded; falls back to legion-llm; stubs otherwise
           def implement_stage(proposal, base_path)
-            return { success: true, stage: :implement, message: 'implementation requires legion-llm' } unless llm_available?
+            unless llm_available? || codegen_from_gap_available?
+              return { success: true, stage: :implement, message: 'implementation requires legion-llm or lex-codegen' }
+            end
 
             path = ext_path(proposal, base_path)
             target_files = implementation_targets(path)
@@ -179,6 +181,28 @@ module Legion
           end
 
           def implement_file(file_path, proposal)
+            return legacy_implement_file(file_path, proposal) unless codegen_from_gap_available?
+
+            result = Legion::Extensions::Codegen::Runners::FromGap.implement_stub(
+              file_path: file_path,
+              context:   proposal_context(proposal)
+            )
+            return { success: false, error: result[:error] || result[:reason] } unless result[:success]
+
+            if eval_available?
+              review = Legion::Extensions::Eval::Runners::CodeReview.review_generated(
+                code: result[:code], spec_code: nil, context: { source: :mind_growth }
+              )
+              return { success: false, error: "review #{review[:verdict]}: #{review[:issues]&.join(', ')}" } unless review[:passed]
+            end
+
+            ::File.write(file_path, result[:code])
+            { success: true, path: file_path }
+          rescue StandardError => e
+            { success: false, error: e.message }
+          end
+
+          def legacy_implement_file(file_path, proposal)
             stub_content = ::File.read(file_path)
 
             chat = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'build' }, intent: { capability: :reasoning })
@@ -190,6 +214,15 @@ module Legion
             { success: true, path: file_path }
           rescue StandardError => e
             { success: false, error: e.message }
+          end
+
+          def proposal_context(proposal)
+            {
+              name:        proposal.name,
+              category:    proposal.category,
+              description: proposal.description,
+              metaphor:    proposal.metaphor
+            }
           end
 
           def implementation_instructions
@@ -237,6 +270,16 @@ module Legion
           # --- Dependency availability checks ---
           def codegen_available?
             defined?(Legion::Extensions::Codegen::Runners::Generate)
+          end
+
+          def codegen_from_gap_available?
+            defined?(Legion::Extensions::Codegen::Runners::FromGap) &&
+              Legion::Extensions::Codegen::Runners::FromGap.respond_to?(:implement_stub)
+          end
+
+          def eval_available?
+            defined?(Legion::Extensions::Eval::Runners::CodeReview) &&
+              Legion::Extensions::Eval::Runners::CodeReview.respond_to?(:review_generated)
           end
 
           def exec_available?

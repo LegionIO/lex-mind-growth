@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.4] - 2026-03-26
+
+### Fixed
+- `Builder#implement_file` now normalizes FromGap failure key as `result[:error] || result[:reason]` to handle both return contracts
+- `Builder#eval_available?` now also checks `respond_to?(:review_generated)` so the review gate only activates when the API is present, consistent with `codegen_from_gap_available?`
+
+## [0.2.3] - 2026-03-26
+
+### Changed
+- `Builder#implement_file` now delegates to `lex-codegen` `FromGap.implement_stub` when available, with optional `lex-eval` `CodeReview.review_generated` validation before writing
+- `Builder#implement_stage` guard accepts either `llm_available?` or `codegen_from_gap_available?`
+
+### Added
+- `Builder#codegen_from_gap_available?` — checks for `FromGap.implement_stub` availability
+- `Builder#eval_available?` — checks for `CodeReview` availability
+- `Builder#proposal_context` — extracts name/category/description/metaphor from proposal for codegen context
+- `Builder#legacy_implement_file` — preserved original inline LLM implementation as fallback
+- 10 new specs: codegen FromGap delegation (5), codegen + eval review (3), legacy fallback (2)
+
 ## [0.2.2] - 2026-03-24
 
 ### Changed

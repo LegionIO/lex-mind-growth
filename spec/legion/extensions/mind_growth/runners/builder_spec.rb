@@ -307,6 +307,158 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Builder do
       end
     end
 
+    describe 'implement_stage with codegen FromGap' do
+      let(:ext_dir) { File.join(Dir.tmpdir, "lex-mind-growth-codegen-test-#{SecureRandom.hex(4)}") }
+      let(:generated_code) { "# frozen_string_literal: true\n\nmodule Impl; end\n" }
+
+      before do
+        from_gap_mod = Module.new do
+          def self.implement_stub(file_path:, context: nil) # rubocop:disable Lint/UnusedMethodArgument
+            { success: true, code: "# frozen_string_literal: true\n\nmodule Impl; end\n", file_path: file_path }
+          end
+        end
+        stub_const('Legion::Extensions::Codegen::Runners::FromGap', from_gap_mod)
+        stub_const('Legion::Extensions::Codegen::Runners::Generate', Module.new)
+        stub_const('Legion::Extensions::Codegen::Runners::Validate', Module.new)
+        allow(Legion::Extensions::Codegen::Runners::Generate).to receive(:scaffold_extension)
+          .and_return({ success: true, path: File.join(ext_dir, 'lex-buildable'), files_created: 12 })
+        allow(Legion::Extensions::Codegen::Runners::Validate).to receive(:validate_structure)
+          .and_return({ valid: true, missing: [], present: %w[Gemfile] })
+        allow(Legion::Extensions::Codegen::Runners::Validate).to receive(:validate_gemspec)
+          .and_return({ valid: true, issues: [] })
+
+        runner_dir = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners')
+        FileUtils.mkdir_p(runner_dir)
+        File.write(File.join(runner_dir, 'example.rb'), "# stub\n")
+      end
+
+      after { FileUtils.rm_rf(ext_dir) }
+
+      it 'delegates to FromGap.implement_stub' do
+        allow(Legion::Extensions::Codegen::Runners::FromGap).to receive(:implement_stub)
+          .and_return({ success: true, code: generated_code, file_path: 'test.rb' })
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(Legion::Extensions::Codegen::Runners::FromGap).to have_received(:implement_stub)
+          .with(hash_including(file_path: a_string_ending_with('example.rb')))
+      end
+
+      it 'includes proposal context in call' do
+        allow(Legion::Extensions::Codegen::Runners::FromGap).to receive(:implement_stub)
+          .and_return({ success: true, code: generated_code, file_path: 'test.rb' })
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(Legion::Extensions::Codegen::Runners::FromGap).to have_received(:implement_stub)
+          .with(hash_including(context: hash_including(name: 'lex-buildable', category: :cognition,
+                                                       description: 'a buildable proposal')))
+      end
+
+      it 'writes approved code to disk' do
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        runner_path = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners', 'example.rb')
+        expect(File.read(runner_path)).to include('module Impl')
+      end
+
+      it 'pipeline completes when FromGap succeeds' do
+        result = builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(result[:pipeline][:stage]).to eq(:complete)
+      end
+
+      it 'pipeline fails when FromGap returns failure' do
+        allow(Legion::Extensions::Codegen::Runners::FromGap).to receive(:implement_stub)
+          .and_return({ success: false, reason: :llm_empty_response })
+        result = builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(result[:pipeline][:errors]).not_to be_empty
+      end
+    end
+
+    describe 'implement_stage with codegen + eval' do
+      let(:ext_dir) { File.join(Dir.tmpdir, "lex-mind-growth-eval-test-#{SecureRandom.hex(4)}") }
+      let(:generated_code) { "# frozen_string_literal: true\n\nmodule Reviewed; end\n" }
+
+      before do
+        from_gap_mod = Module.new do
+          def self.implement_stub(file_path:, context: nil) # rubocop:disable Lint/UnusedMethodArgument
+            { success: true, code: "# frozen_string_literal: true\n\nmodule Reviewed; end\n", file_path: file_path }
+          end
+        end
+        stub_const('Legion::Extensions::Codegen::Runners::FromGap', from_gap_mod)
+        stub_const('Legion::Extensions::Codegen::Runners::Generate', Module.new)
+        stub_const('Legion::Extensions::Codegen::Runners::Validate', Module.new)
+        stub_const('Legion::Extensions::Eval::Runners::CodeReview', Module.new)
+        allow(Legion::Extensions::Codegen::Runners::Generate).to receive(:scaffold_extension)
+          .and_return({ success: true, path: File.join(ext_dir, 'lex-buildable'), files_created: 12 })
+        allow(Legion::Extensions::Codegen::Runners::Validate).to receive(:validate_structure)
+          .and_return({ valid: true, missing: [], present: %w[Gemfile] })
+        allow(Legion::Extensions::Codegen::Runners::Validate).to receive(:validate_gemspec)
+          .and_return({ valid: true, issues: [] })
+
+        runner_dir = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners')
+        FileUtils.mkdir_p(runner_dir)
+        File.write(File.join(runner_dir, 'example.rb'), "# stub\n")
+      end
+
+      after { FileUtils.rm_rf(ext_dir) }
+
+      it 'validates code through CodeReview before writing' do
+        allow(Legion::Extensions::Eval::Runners::CodeReview).to receive(:review_generated)
+          .and_return({ passed: true, verdict: :approve })
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(Legion::Extensions::Eval::Runners::CodeReview).to have_received(:review_generated)
+          .with(hash_including(code: a_string_including('module Reviewed'), context: { source: :mind_growth }))
+      end
+
+      it 'writes when review approves' do
+        allow(Legion::Extensions::Eval::Runners::CodeReview).to receive(:review_generated)
+          .and_return({ passed: true, verdict: :approve })
+        result = builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(result[:pipeline][:stage]).to eq(:complete)
+        runner_path = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners', 'example.rb')
+        expect(File.read(runner_path)).to include('module Reviewed')
+      end
+
+      it 'does not write when review rejects' do
+        allow(Legion::Extensions::Eval::Runners::CodeReview).to receive(:review_generated)
+          .and_return({ passed: false, verdict: :reject, issues: ['unsafe eval'] })
+        result = builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(result[:pipeline][:errors]).not_to be_empty
+        runner_path = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners', 'example.rb')
+        expect(File.read(runner_path)).to eq("# stub\n")
+      end
+    end
+
+    describe 'implement_stage fallback (no FromGap)' do
+      let(:mock_chat) { double('RubyLLM::Chat') }
+      let(:mock_response) { double('RubyLLM::Message', content: "# frozen_string_literal: true\n\n{ success: true }\n") }
+      let(:ext_dir) { File.join(Dir.tmpdir, "lex-mind-growth-fallback-test-#{SecureRandom.hex(4)}") }
+
+      before do
+        llm_mod = Module.new do
+          def self.started? = true
+          def self.chat(**) = nil
+        end
+        stub_const('Legion::LLM', llm_mod)
+        allow(Legion::LLM).to receive(:chat).and_return(mock_chat)
+        allow(mock_chat).to receive(:with_instructions).and_return(mock_chat)
+        allow(mock_chat).to receive(:ask).and_return(mock_response)
+
+        runner_dir = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners')
+        FileUtils.mkdir_p(runner_dir)
+        File.write(File.join(runner_dir, 'example.rb'), "# stub\n")
+      end
+
+      after { FileUtils.rm_rf(ext_dir) }
+
+      it 'falls back to legacy LLM implementation' do
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        expect(mock_chat).to have_received(:ask).at_least(:once)
+      end
+
+      it 'writes LLM output to files via legacy path' do
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+        runner_path = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners', 'example.rb')
+        expect(File.read(runner_path)).to include('success: true')
+      end
+    end
+
     describe 'full wired pipeline' do
       before do
         stub_const('Legion::Extensions::Codegen::Runners::Generate', Module.new)
