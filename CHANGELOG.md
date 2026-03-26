@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.4] - 2026-03-26
+
+### Fixed
+- `Builder#implement_file` now normalizes FromGap failure key as `result[:error] || result[:reason]` to handle both return contracts
+- `Builder#eval_available?` now also checks `respond_to?(:review_generated)` so the review gate only activates when the API is present, consistent with `codegen_from_gap_available?`
+
 ## [0.2.3] - 2026-03-26
 
 ### Changed

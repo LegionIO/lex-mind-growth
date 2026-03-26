@@ -187,7 +187,7 @@ module Legion
               file_path: file_path,
               context:   proposal_context(proposal)
             )
-            return { success: false, error: result[:reason] } unless result[:success]
+            return { success: false, error: result[:error] || result[:reason] } unless result[:success]
 
             if eval_available?
               review = Legion::Extensions::Eval::Runners::CodeReview.review_generated(
@@ -278,7 +278,8 @@ module Legion
           end
 
           def eval_available?
-            defined?(Legion::Extensions::Eval::Runners::CodeReview)
+            defined?(Legion::Extensions::Eval::Runners::CodeReview) &&
+              Legion::Extensions::Eval::Runners::CodeReview.respond_to?(:review_generated)
           end
 
           def exec_available?
