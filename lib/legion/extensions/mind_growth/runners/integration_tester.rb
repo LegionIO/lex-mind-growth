@@ -42,6 +42,7 @@ module Legion
 
           def benchmark_tick(with_extension: nil, iterations: 5, **)
             return { success: false, reason: :gaia_not_available } unless gaia_available?
+            return { success: false, reason: :invalid_iterations, iterations: iterations } unless iterations.is_a?(Integer) && iterations >= 1
 
             timings = Array.new(iterations) do
               start = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
