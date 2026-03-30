@@ -19,7 +19,7 @@ module Legion
               target_extension: target_extension.to_s,
               target_method:    target_method.to_sym,
               transform:        transform
-            }
+            }.freeze
             @mutex.synchronize { @rules[rule_id] = rule }
             { success: true, rule_id: rule_id }
           end
@@ -31,7 +31,7 @@ module Legion
 
           def rules_for(source_extension:, **)
             src = source_extension.to_s
-            @mutex.synchronize { @rules.values.select { |r| r[:source_extension] == src } }
+            @mutex.synchronize { @rules.values.select { |r| r[:source_extension] == src }.map(&:dup) }
           end
 
           def all_rules
@@ -41,7 +41,7 @@ module Legion
           def match_output(source_extension:, output:, **)
             src   = source_extension.to_s
             out_h = output.is_a?(Hash) ? output : {}
-            rules = @mutex.synchronize { @rules.values.select { |r| r[:source_extension] == src } }
+            rules = @mutex.synchronize { @rules.values.select { |r| r[:source_extension] == src }.map(&:dup) }
 
             rules.filter_map do |rule|
               key = rule[:output_key]

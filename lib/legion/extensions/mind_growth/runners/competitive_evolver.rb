@@ -7,7 +7,8 @@ module Legion
         module CompetitiveEvolver
           extend self
 
-          COMPETITION_STATUSES = %i[pending active evaluating decided cancelled].freeze
+          COMPETITION_STATUSES  = %i[pending active evaluating decided cancelled].freeze
+          ACTIVE_STATUSES       = %i[pending active evaluating].freeze
           MIN_TRIAL_ITERATIONS = 10
 
           def create_competition(gap:, proposal_ids:, **)
@@ -108,7 +109,7 @@ module Legion
           end
 
           def active_competitions(**)
-            comps = all_competitions.select { |c| %i[pending active evaluating].include?(c[:status]) } # rubocop:disable Performance/CollectionLiteralInLoop
+            comps = all_competitions.select { |c| ACTIVE_STATUSES.include?(c[:status]) }
             { success: true, competitions: comps.map { |c| { id: c[:id], gap: c[:gap], status: c[:status] } },
               count: comps.size }
           end

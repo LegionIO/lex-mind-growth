@@ -10,14 +10,15 @@ module Legion
 
           extend self
 
-          BOTTOM_PERCENTILE = 0.05
+          BOTTOM_PERCENTILE          = 0.05
           SPECIATION_DRIFT_THRESHOLD = 0.5
+          INELIGIBLE_STATUSES        = %i[building testing].freeze
 
           def select_for_improvement(extensions:, count: 3, **)
             exts = Array(extensions)
             return { success: true, candidates: [], count: 0, total_evaluated: 0 } if exts.empty?
 
-            eligible = exts.reject { |e| %i[building testing].include?((e[:status] || :active).to_sym) } # rubocop:disable Performance/CollectionLiteralInLoop
+            eligible = exts.reject { |e| INELIGIBLE_STATUSES.include?((e[:status] || :active).to_sym) }
             ranked   = Helpers::FitnessEvaluator.rank(eligible)
             bottom_n = ranked.last(count)
 
