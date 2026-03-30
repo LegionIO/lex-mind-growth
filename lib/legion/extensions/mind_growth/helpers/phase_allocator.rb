@@ -89,7 +89,7 @@ module Legion
           end
 
           def valid_phase?(phase)
-            CATEGORY_PHASE_MAP.values.include?(phase) || DREAM_PHASE_MAP.values.include?(phase)
+            CATEGORY_PHASE_MAP.value?(phase) || DREAM_PHASE_MAP.value?(phase)
           end
 
           def phases_for_category(category)

@@ -5,19 +5,20 @@ module Legion
     module MindGrowth
       module Runners
         module Evolver
-          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
-                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers, false) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex, false)
 
           extend self
 
-          BOTTOM_PERCENTILE = 0.05
+          BOTTOM_PERCENTILE          = 0.05
           SPECIATION_DRIFT_THRESHOLD = 0.5
+          INELIGIBLE_STATUSES        = %i[building testing].freeze
 
           def select_for_improvement(extensions:, count: 3, **)
             exts = Array(extensions)
             return { success: true, candidates: [], count: 0, total_evaluated: 0 } if exts.empty?
 
-            eligible = exts.reject { |e| %i[building testing].include?((e[:status] || :active).to_sym) }
+            eligible = exts.reject { |e| INELIGIBLE_STATUSES.include?((e[:status] || :active).to_sym) }
             ranked   = Helpers::FitnessEvaluator.rank(eligible)
             bottom_n = ranked.last(count)
 
@@ -50,7 +51,7 @@ module Legion
             name_a = extension_a[:name] || extension_a[:extension_name]
             name_b = extension_b[:name] || extension_b[:extension_name]
             cat_a  = (extension_a[:category] || :cognition).to_sym
-            merged = merged_name || "lex-merged-#{name_a.to_s.sub(/\Alex-/, '')}-#{name_b.to_s.sub(/\Alex-/, '')}"
+            merged = merged_name || "lex-merged-#{name_a.to_s.delete_prefix('lex-')}-#{name_b.to_s.delete_prefix('lex-')}"
             desc   = "Merged extension combining capabilities of #{name_a} and #{name_b}"
 
             proposal = Runners::Proposer.propose_concept(
@@ -126,11 +127,17 @@ module Legion
           end
 
           def llm_suggestions(name, fitness, weaknesses)
+            # rubocop:disable Legion/HelperMigration/DirectLlm
             response = Legion::LLM.chat(
-              caller: { extension: 'lex-mind-growth', operation: 'evolver', phase: 'suggest' }
+              caller: {
+                extension: 'lex-mind-growth',
+                operation: 'evolver',
+                phase:     'suggest'
+              }
             ).ask(improvement_prompt(name, fitness, weaknesses))
+            # rubocop:enable Legion/HelperMigration/DirectLlm
             parse_llm_suggestions(response.content)
-          rescue StandardError
+          rescue StandardError => _e
             nil
           end
 
@@ -151,7 +158,7 @@ module Legion
             return nil unless data.is_a?(Array)
 
             data.map(&:to_s).reject(&:empty?)
-          rescue ::JSON::ParserError
+          rescue ::JSON::ParserError => _e
             nil
           end
 

@@ -154,7 +154,7 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Governance do
 
     context 'thread safety' do
       it 'records all votes when cast concurrently' do
-        threads = 10.times.map do |i|
+        threads = Array.new(10) do |i|
           Thread.new { governance.vote_on_proposal(proposal_id: proposal.id, vote: :approve, agent_id: "t#{i}") }
         end
         threads.each(&:join)

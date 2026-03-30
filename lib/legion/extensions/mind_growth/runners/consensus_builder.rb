@@ -9,6 +9,7 @@ module Legion
 
           CONSENSUS_THRESHOLD               = 0.67
           DISAGREEMENT_ESCALATION_THRESHOLD = 0.5
+          DECIDED_CONSENSUSES               = %i[approved rejected].freeze
 
           def propose_to_swarm(charter_id:, proposal_id:, proposer_agent_id:, **)
             if swarm_available?
@@ -52,8 +53,8 @@ module Legion
           def tally_swarm_votes(charter_id:, proposal_id:, **)
             votes = fetch_votes(charter_id, proposal_id)
 
-            approve_count = votes.count { |v| [:approve, 'approve'].include?(v[:vote]) }
-            reject_count  = votes.count { |v| [:reject, 'reject'].include?(v[:vote]) }
+            approve_count = votes.count { |v| v[:vote].to_s == 'approve' }
+            reject_count  = votes.count { |v| v[:vote].to_s == 'reject' }
             total         = votes.size
 
             consensus = if !total.zero? && (approve_count.to_f / total) >= CONSENSUS_THRESHOLD
@@ -95,7 +96,7 @@ module Legion
               record = { proposal_id: pid, consensus: tally[:consensus],
                          approve_count: tally[:approve_count], reject_count: tally[:reject_count] }
 
-              if %i[approved rejected].include?(tally[:consensus])
+              if DECIDED_CONSENSUSES.include?(tally[:consensus])
                 decided << record
               else
                 pending << record

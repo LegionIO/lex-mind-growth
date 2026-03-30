@@ -6,7 +6,7 @@ module Legion
   module Extensions
     module MindGrowth
       module Actor
-        class GrowthCycle < Legion::Extensions::Actors::Every
+        class GrowthCycle < Legion::Extensions::Actors::Every # rubocop:disable Legion/Extension/EveryActorRequiresTime
           def runner_class
             Legion::Extensions::MindGrowth::Runners::Orchestrator
           end
@@ -19,7 +19,7 @@ module Legion
             3600
           end
 
-          def enabled?
+          def enabled? # rubocop:disable Legion/Extension/ActorEnabledSideEffects
             codegen_loaded? || exec_loaded?
           end
 

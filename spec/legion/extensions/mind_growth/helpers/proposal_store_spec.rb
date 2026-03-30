@@ -160,7 +160,7 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::ProposalStore do
     it 'evicts the oldest proposal when at capacity' do
       stub_const("#{described_class}::MAX_PROPOSALS", 3)
       small_store = described_class.new
-      proposals = 4.times.map do |i|
+      proposals = Array.new(4) do |i|
         Legion::Extensions::MindGrowth::Helpers::ConceptProposal.new(
           name: "lex-evict-#{i}", module_name: "E#{i}", category: :cognition, description: "evict #{i}"
         )
@@ -188,7 +188,7 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::ProposalStore do
 
   describe 'thread safety' do
     it 'handles concurrent stores without error' do
-      threads = 10.times.map do |i|
+      threads = Array.new(10) do |i|
         Thread.new do
           p = Legion::Extensions::MindGrowth::Helpers::ConceptProposal.new(
             name: "lex-thread-#{i}", module_name: "T#{i}", category: :cognition, description: "thread #{i}"

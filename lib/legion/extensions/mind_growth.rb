@@ -34,7 +34,7 @@ require 'legion/extensions/mind_growth/client'
 module Legion
   module Extensions
     module MindGrowth
-      extend Legion::Extensions::Core if Legion::Extensions.const_defined?(:Core)
+      extend Legion::Extensions::Core if Legion::Extensions.const_defined?(:Core, false)
 
       def self.remote_invocable?
         false

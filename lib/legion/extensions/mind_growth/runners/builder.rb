@@ -5,8 +5,8 @@ module Legion
     module MindGrowth
       module Runners
         module Builder
-          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
-                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers, false) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex, false)
 
           extend self
 
@@ -59,7 +59,7 @@ module Legion
           end
 
           def strip_lex_prefix(name)
-            name.to_s.sub(/\Alex-/, '')
+            name.to_s.delete_prefix('lex-')
           end
 
           def proposal_id_for(proposal)
@@ -247,7 +247,7 @@ module Legion
           def legacy_implement_file(file_path, proposal)
             stub_content = ::File.read(file_path)
 
-            chat = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'build' }, intent: { capability: :reasoning })
+            chat = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'build' }, intent: { capability: :reasoning }) # rubocop:disable Legion/HelperMigration/DirectLlm
             chat.with_instructions(implementation_instructions)
             response = chat.ask(file_implementation_prompt(stub_content, proposal))
             code = extract_ruby_code(response.content)

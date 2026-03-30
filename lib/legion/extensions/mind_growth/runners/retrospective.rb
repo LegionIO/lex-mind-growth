@@ -5,19 +5,24 @@ module Legion
     module MindGrowth
       module Runners
         module Retrospective
-          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
-                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers, false) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex, false)
 
           extend self
+
+          BUILT_STATUSES       = %i[passing wired active].freeze
+          FAILED_STATUSES      = %i[build_failed rejected pruned].freeze
+          IN_PROGRESS_STATUSES = %i[proposed evaluating approved building testing].freeze
+          SUCCEEDED_STATUSES   = BUILT_STATUSES
 
           # Generates a summary of growth activity: proposals by status, recent builds, failures
           def session_report(**)
             proposals = Runners::Proposer.proposal_stats
             recent = Runners::Proposer.list_proposals(limit: 10)
 
-            built = recent[:proposals].select { |p| %i[passing wired active].include?(p[:status]) }
-            failed = recent[:proposals].select { |p| %i[build_failed rejected pruned].include?(p[:status]) }
-            in_progress = recent[:proposals].select { |p| %i[proposed evaluating approved building testing].include?(p[:status]) }
+            built       = recent[:proposals].select { |p| BUILT_STATUSES.include?(p[:status]) }
+            failed      = recent[:proposals].select { |p| FAILED_STATUSES.include?(p[:status]) }
+            in_progress = recent[:proposals].select { |p| IN_PROGRESS_STATUSES.include?(p[:status]) }
 
             {
               success:      true,
@@ -64,7 +69,7 @@ module Legion
 
             failed = proposals.select { |p| p[:status] == :build_failed }
             rejected = proposals.select { |p| p[:status] == :rejected }
-            succeeded = proposals.select { |p| %i[passing wired active].include?(p[:status]) }
+            succeeded = proposals.select { |p| SUCCEEDED_STATUSES.include?(p[:status]) }
 
             # Category success rates
             category_stats = compute_category_stats(proposals)
@@ -92,7 +97,7 @@ module Legion
           def compute_category_stats(proposals)
             by_category = proposals.group_by { |p| p[:category] }
             by_category.transform_values do |cat_proposals|
-              succeeded = cat_proposals.count { |p| %i[passing wired active].include?(p[:status]) }
+              succeeded = cat_proposals.count { |p| SUCCEEDED_STATUSES.include?(p[:status]) }
               {
                 total:        cat_proposals.size,
                 succeeded:    succeeded,

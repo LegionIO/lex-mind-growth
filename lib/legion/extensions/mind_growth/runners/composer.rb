@@ -5,8 +5,8 @@ module Legion
     module MindGrowth
       module Runners
         module Composer
-          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
-                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers, false) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex, false)
 
           extend self
 
@@ -108,7 +108,7 @@ module Legion
           def suggest_with_llm(extensions)
             suggestions = heuristic_suggestions(extensions)
             { success: true, suggestions: suggestions, count: suggestions.size }
-          rescue StandardError
+          rescue StandardError => _e
             { success: true, suggestions: [], count: 0 }
           end
         end
