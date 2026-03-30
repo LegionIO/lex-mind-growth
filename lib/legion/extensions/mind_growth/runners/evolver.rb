@@ -127,8 +127,15 @@ module Legion
           end
 
           def llm_suggestions(name, fitness, weaknesses)
-            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'evolver', # rubocop:disable Legion/HelperMigration/DirectLlm
-phase: 'suggest' }).ask(improvement_prompt(name, fitness, weaknesses))
+            # rubocop:disable Legion/HelperMigration/DirectLlm
+            response = Legion::LLM.chat(
+              caller: {
+                extension: 'lex-mind-growth',
+                operation: 'evolver',
+                phase:     'suggest'
+              }
+            ).ask(improvement_prompt(name, fitness, weaknesses))
+            # rubocop:enable Legion/HelperMigration/DirectLlm
             parse_llm_suggestions(response.content)
           rescue StandardError => _e
             nil

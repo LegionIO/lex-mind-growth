@@ -13,7 +13,7 @@ module Legion
           BUILT_STATUSES       = %i[passing wired active].freeze
           FAILED_STATUSES      = %i[build_failed rejected pruned].freeze
           IN_PROGRESS_STATUSES = %i[proposed evaluating approved building testing].freeze
-          SUCCEEDED_STATUSES   = %i[passing wired active].freeze
+          SUCCEEDED_STATUSES   = BUILT_STATUSES
 
           # Generates a summary of growth activity: proposals by status, recent builds, failures
           def session_report(**)
