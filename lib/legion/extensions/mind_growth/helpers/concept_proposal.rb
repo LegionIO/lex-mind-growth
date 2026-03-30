@@ -12,7 +12,7 @@ module Legion
 
           attr_reader(*FIELDS)
 
-          def initialize(name:, module_name:, category:, description:, metaphor: nil, helpers: [],
+          def initialize(name:, module_name:, category:, description:, metaphor: nil, helpers: [], # rubocop:disable Metrics/ParameterLists
                          runner_methods: [], rationale: nil, origin: :proposer)
             @id             = SecureRandom.uuid
             @name           = name

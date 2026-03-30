@@ -7,8 +7,8 @@ module Legion
     module MindGrowth
       module Runners
         module Proposer
-          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
-                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers, false) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex, false)
 
           extend self
 
@@ -96,7 +96,7 @@ module Legion
           end
 
           def derive_module_name(gem_name)
-            gem_name.to_s.sub(/\Alex-/, '').split('-').map(&:capitalize).join
+            gem_name.to_s.delete_prefix('lex-').split('-').map(&:capitalize).join
           end
 
           def suggest_category
@@ -117,7 +117,7 @@ module Legion
           def enrich_proposal(name, category, description)
             return {} unless llm_available?
 
-            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose',
+            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose', # rubocop:disable Legion/HelperMigration/DirectLlm
 phase: 'capability' }).ask(enrichment_prompt(name, category, description))
             parse_enrichment(response.content)
           rescue StandardError => e
@@ -151,7 +151,7 @@ phase: 'capability' }).ask(enrichment_prompt(name, category, description))
                 { name: r[:name].to_s, params: Array(r[:params]).map(&:to_s), returns: r[:returns].to_s }
               end
             }
-          rescue ::JSON::ParserError, NoMethodError
+          rescue ::JSON::ParserError, NoMethodError => _e
             {}
           end
 
@@ -162,7 +162,7 @@ phase: 'capability' }).ask(enrichment_prompt(name, category, description))
           def score_with_llm(proposal)
             return nil unless llm_available?
 
-            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose', phase: 'score' }).ask(scoring_prompt(proposal))
+            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose', phase: 'score' }).ask(scoring_prompt(proposal)) # rubocop:disable Legion/HelperMigration/DirectLlm
             parse_scores(response.content)
           rescue StandardError => e
             log.debug "[mind_growth:proposer] LLM scoring failed: #{e.message}"
@@ -203,7 +203,7 @@ phase: 'capability' }).ask(enrichment_prompt(name, category, description))
 
               [dim, val.to_f.clamp(0.0, 1.0)]
             end
-          rescue ::JSON::ParserError, NoMethodError
+          rescue ::JSON::ParserError, NoMethodError => _e
             nil
           end
 
@@ -225,7 +225,7 @@ phase: 'capability' }).ask(enrichment_prompt(name, category, description))
             return nil unless llm_available?
 
             candidates = existing.last(20).map { |p| { name: p.name, description: p.description } }
-            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose',
+            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose', # rubocop:disable Legion/HelperMigration/DirectLlm
 phase: 'validate' }).ask(redundancy_prompt(name, description, candidates))
             parse_redundancy(response.content)
           rescue StandardError => e
@@ -264,7 +264,7 @@ phase: 'validate' }).ask(redundancy_prompt(name, description, candidates))
               similar_to: data[:similar_to],
               score:      score
             }
-          rescue ::JSON::ParserError, NoMethodError
+          rescue ::JSON::ParserError, NoMethodError => _e
             nil
           end
         end

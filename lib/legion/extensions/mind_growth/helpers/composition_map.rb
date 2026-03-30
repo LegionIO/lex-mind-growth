@@ -7,7 +7,7 @@ module Legion
         module CompositionMap
           module_function
 
-          @rules = {}
+          @rules = {} # rubocop:disable ThreadSafety/MutableClassInstanceVariable
           @mutex = Mutex.new
 
           def add_rule(source_extension:, output_key:, target_extension:, target_method:, transform: nil, **)

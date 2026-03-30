@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.7] - 2026-03-30
+
+### Changed
+- adopt rubocop-legion 0.1.7 shared config via `inherit_gem`; fix all resulting cop offenses
+
 ## [0.2.6] - 2026-03-29
 
 ### Changed

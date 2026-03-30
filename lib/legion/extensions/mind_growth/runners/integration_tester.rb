@@ -5,8 +5,8 @@ module Legion
     module MindGrowth
       module Runners
         module IntegrationTester
-          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
-                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers, false) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex, false)
 
           extend self
 
@@ -43,7 +43,7 @@ module Legion
           def benchmark_tick(with_extension: nil, iterations: 5, **)
             return { success: false, reason: :gaia_not_available } unless gaia_available?
 
-            timings = iterations.times.map do
+            timings = Array.new(iterations) do
               start = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
               Legion::Gaia.heartbeat if Legion::Gaia.respond_to?(:heartbeat)
               finish = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)

@@ -235,7 +235,7 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::CompositionMap do
 
   describe 'thread safety' do
     it 'records all rules when added concurrently' do
-      threads = 20.times.map do |i|
+      threads = Array.new(20) do |i|
         Thread.new do
           map.add_rule(source_extension: "lex-#{i}", output_key: :result,
                        target_extension: 'lex-target', target_method: :run)

@@ -108,7 +108,7 @@ module Legion
           end
 
           def active_competitions(**)
-            comps = all_competitions.select { |c| %i[pending active evaluating].include?(c[:status]) }
+            comps = all_competitions.select { |c| %i[pending active evaluating].include?(c[:status]) } # rubocop:disable Performance/CollectionLiteralInLoop
             { success: true, competitions: comps.map { |c| { id: c[:id], gap: c[:gap], status: c[:status] } },
               count: comps.size }
           end

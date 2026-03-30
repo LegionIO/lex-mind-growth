@@ -52,8 +52,8 @@ module Legion
           def tally_swarm_votes(charter_id:, proposal_id:, **)
             votes = fetch_votes(charter_id, proposal_id)
 
-            approve_count = votes.count { |v| [:approve, 'approve'].include?(v[:vote]) }
-            reject_count  = votes.count { |v| [:reject, 'reject'].include?(v[:vote]) }
+            approve_count = votes.count { |v| [:approve, 'approve'].include?(v[:vote]) } # rubocop:disable Performance/CollectionLiteralInLoop
+            reject_count  = votes.count { |v| [:reject, 'reject'].include?(v[:vote]) } # rubocop:disable Performance/CollectionLiteralInLoop
             total         = votes.size
 
             consensus = if !total.zero? && (approve_count.to_f / total) >= CONSENSUS_THRESHOLD
@@ -95,7 +95,7 @@ module Legion
               record = { proposal_id: pid, consensus: tally[:consensus],
                          approve_count: tally[:approve_count], reject_count: tally[:reject_count] }
 
-              if %i[approved rejected].include?(tally[:consensus])
+              if %i[approved rejected].include?(tally[:consensus]) # rubocop:disable Performance/CollectionLiteralInLoop
                 decided << record
               else
                 pending << record

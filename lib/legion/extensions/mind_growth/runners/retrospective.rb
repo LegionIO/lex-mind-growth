@@ -5,8 +5,8 @@ module Legion
     module MindGrowth
       module Runners
         module Retrospective
-          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers) &&
-                                                      Legion::Extensions::Helpers.const_defined?(:Lex)
+          include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers, false) &&
+                                                      Legion::Extensions::Helpers.const_defined?(:Lex, false)
 
           extend self
 
@@ -15,9 +15,9 @@ module Legion
             proposals = Runners::Proposer.proposal_stats
             recent = Runners::Proposer.list_proposals(limit: 10)
 
-            built = recent[:proposals].select { |p| %i[passing wired active].include?(p[:status]) }
-            failed = recent[:proposals].select { |p| %i[build_failed rejected pruned].include?(p[:status]) }
-            in_progress = recent[:proposals].select { |p| %i[proposed evaluating approved building testing].include?(p[:status]) }
+            built = recent[:proposals].select { |p| %i[passing wired active].include?(p[:status]) } # rubocop:disable Performance/CollectionLiteralInLoop
+            failed = recent[:proposals].select { |p| %i[build_failed rejected pruned].include?(p[:status]) } # rubocop:disable Performance/CollectionLiteralInLoop
+            in_progress = recent[:proposals].select { |p| %i[proposed evaluating approved building testing].include?(p[:status]) } # rubocop:disable Performance/CollectionLiteralInLoop
 
             {
               success:      true,
@@ -64,7 +64,7 @@ module Legion
 
             failed = proposals.select { |p| p[:status] == :build_failed }
             rejected = proposals.select { |p| p[:status] == :rejected }
-            succeeded = proposals.select { |p| %i[passing wired active].include?(p[:status]) }
+            succeeded = proposals.select { |p| %i[passing wired active].include?(p[:status]) } # rubocop:disable Performance/CollectionLiteralInLoop
 
             # Category success rates
             category_stats = compute_category_stats(proposals)
@@ -92,7 +92,7 @@ module Legion
           def compute_category_stats(proposals)
             by_category = proposals.group_by { |p| p[:category] }
             by_category.transform_values do |cat_proposals|
-              succeeded = cat_proposals.count { |p| %i[passing wired active].include?(p[:status]) }
+              succeeded = cat_proposals.count { |p| %i[passing wired active].include?(p[:status]) } # rubocop:disable Performance/CollectionLiteralInLoop
               {
                 total:        cat_proposals.size,
                 succeeded:    succeeded,

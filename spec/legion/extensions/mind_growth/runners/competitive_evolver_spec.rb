@@ -329,7 +329,7 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::CompetitiveEvolver do
 
   describe 'thread safety' do
     it 'handles concurrent competition creation' do
-      threads = 10.times.map do |i|
+      threads = Array.new(10) do |i|
         Thread.new { evolver.create_competition(gap: "gap-#{i}", proposal_ids: %w[a b]) }
       end
       results = threads.map(&:value)
