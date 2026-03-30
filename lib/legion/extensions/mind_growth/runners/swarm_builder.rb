@@ -67,7 +67,7 @@ module Legion
                       when :integration_sweep   then execute_integration_sweep(charter_id)
                       end
 
-            { success: true, charter_type: charter_type, results: Array(results) }
+            { success: true, charter_id: charter_id, charter_type: charter_type, results: Array(results) }
           end
 
           def complete_build_swarm(charter_id:, outcome: :success, **)

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.6] - 2026-03-29
+
+### Changed
+- `build_extension`, `build_status` accept `**` for task system payload compatibility
+- Build stage methods (`scaffold_stage`, `implement_stage`, `test_stage`, `validate_stage`, `register_stage`) include `proposal_id` and `path` in return hashes for chain propagation
+- `execute_swarm_build` return hash includes `charter_id` alongside `charter_type` for task chain continuity
+- `GrowthCycle` actor enables `check_subtask?` for workflow chain dispatch
+
 ## [0.2.5] - 2026-03-26
 
 ### Changed

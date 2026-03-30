@@ -32,7 +32,7 @@ module Legion
           end
 
           def check_subtask?
-            false
+            true
           end
 
           def generate_task?

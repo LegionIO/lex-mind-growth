@@ -62,10 +62,18 @@ module Legion
             name.to_s.sub(/\Alex-/, '')
           end
 
+          def proposal_id_for(proposal)
+            proposal.id if proposal.respond_to?(:id)
+          end
+
           # --- Scaffold Stage ---
           # Delegates to lex-codegen when loaded; stubs otherwise
           def scaffold_stage(proposal, base_path)
-            return { success: true, stage: :scaffold, files: 0, message: 'scaffold requires lex-codegen' } unless codegen_available?
+            unless codegen_available?
+              return { success: true, stage: :scaffold, files: 0, message: 'scaffold requires lex-codegen',
+                       proposal_id: proposal_id_for(proposal),
+                       path: ext_path(proposal, base_path) }
+            end
 
             name = strip_lex_prefix(proposal.name)
             result = Legion::Extensions::Codegen::Runners::Generate.scaffold_extension(
@@ -79,14 +87,18 @@ module Legion
             )
 
             { success: result[:success], stage: :scaffold, files: result[:files_created] || 0,
-              path: result[:path], error: result[:error] }
+              path: result[:path] || ext_path(proposal, base_path), error: result[:error],
+              proposal_id: proposal_id_for(proposal) }
           end
 
           # --- Implement Stage ---
           # Delegates to lex-codegen FromGap when loaded; falls back to legion-llm; stubs otherwise
           def implement_stage(proposal, base_path)
             unless llm_available? || codegen_from_gap_available?
-              return { success: true, stage: :implement, message: 'implementation requires legion-llm or lex-codegen' }
+              return { success: true, stage: :implement,
+                       message: 'implementation requires legion-llm or lex-codegen',
+                       proposal_id: proposal_id_for(proposal),
+                       path: ext_path(proposal, base_path) }
             end
 
             path = ext_path(proposal, base_path)
@@ -94,7 +106,9 @@ module Legion
 
             if target_files.empty?
               return { success: true, stage: :implement, files_implemented: 0,
-                       message: 'no implementation targets found' }
+                       message: 'no implementation targets found',
+                       proposal_id: proposal_id_for(proposal),
+                       path: path }
             end
 
             files_implemented = 0
@@ -111,43 +125,64 @@ module Legion
 
             success = errors.empty?
             { success: success, stage: :implement, files_implemented: files_implemented,
-              total_files: target_files.size, error: success ? nil : errors.join('; ') }
+              total_files: target_files.size, error: success ? nil : errors.join('; '),
+              proposal_id: proposal_id_for(proposal),
+              path: path }
           end
 
           # --- Test Stage ---
           # Delegates to lex-exec bundler runners when loaded; stubs otherwise
           def test_stage(proposal, base_path)
-            return { success: true, stage: :test, message: 'testing requires lex-exec' } unless exec_available?
+            unless exec_available?
+              return { success: true, stage: :test, message: 'testing requires lex-exec',
+                       proposal_id: proposal_id_for(proposal),
+                       path: ext_path(proposal, base_path) }
+            end
 
-            path = ext_path(proposal, base_path)
-
+            path    = ext_path(proposal, base_path)
+            pid     = proposal_id_for(proposal)
             install = Legion::Extensions::Exec::Runners::Bundler.install(path: path)
             unless install[:success]
               return { success: false, stage: :test, step: :install,
-                       error: install[:stderr] || install[:error] }
+                       error: install[:stderr] || install[:error],
+                       proposal_id: pid, path: path }
             end
 
+            run_test_suite(path: path, pid: pid)
+          end
+
+          def run_test_suite(path:, pid:)
             rspec   = Legion::Extensions::Exec::Runners::Bundler.exec_rspec(path: path)
             rubocop = Legion::Extensions::Exec::Runners::Bundler.exec_rubocop(path: path)
 
             rspec_ok   = rspec[:success] && (rspec.dig(:parsed, :failures) || 0).zero?
             rubocop_ok = rubocop[:success]
 
-            errors = [
-              (rspec_ok ? nil : "rspec: #{rspec[:parsed] || rspec[:stderr]}"),
-              (rubocop_ok ? nil : "rubocop: #{rubocop[:parsed] || rubocop[:stderr]}")
-            ].compact.join('; ')
+            errors = build_test_errors(rspec: rspec, rubocop: rubocop, rspec_ok: rspec_ok, rubocop_ok: rubocop_ok)
 
             { success: rspec_ok && rubocop_ok, stage: :test,
               rspec: rspec[:parsed] || { raw: rspec[:stdout] },
               rubocop: rubocop[:parsed] || { raw: rubocop[:stdout] },
-              error: errors.empty? ? nil : errors }
+              error: errors.empty? ? nil : errors,
+              proposal_id: pid,
+              path: path }
+          end
+
+          def build_test_errors(rspec:, rubocop:, rspec_ok:, rubocop_ok:)
+            [
+              (rspec_ok ? nil : "rspec: #{rspec[:parsed] || rspec[:stderr]}"),
+              (rubocop_ok ? nil : "rubocop: #{rubocop[:parsed] || rubocop[:stderr]}")
+            ].compact.join('; ')
           end
 
           # --- Validate Stage ---
           # Delegates to lex-codegen validators when loaded; stubs otherwise
           def validate_stage(proposal, base_path)
-            return { success: true, stage: :validate, message: 'validation requires lex-codegen' } unless codegen_available?
+            unless codegen_available?
+              return { success: true, stage: :validate, message: 'validation requires lex-codegen',
+                       proposal_id: proposal_id_for(proposal),
+                       path: ext_path(proposal, base_path) }
+            end
 
             path      = ext_path(proposal, base_path)
             structure = Legion::Extensions::Codegen::Runners::Validate.validate_structure(path: path)
@@ -155,13 +190,19 @@ module Legion
 
             valid = structure[:valid] && gemspec[:valid]
             { success: valid, stage: :validate, structure: structure, gemspec: gemspec,
-              error: valid ? nil : "structure: #{structure[:missing]}, gemspec: #{gemspec[:issues]}" }
+              error: valid ? nil : "structure: #{structure[:missing]}, gemspec: #{gemspec[:issues]}",
+              proposal_id: proposal_id_for(proposal),
+              path: path }
           end
 
           # --- Register Stage ---
           # Delegates to lex-metacognition registry when loaded; stubs otherwise
           def register_stage(proposal)
-            return { success: true, stage: :register, message: 'registration requires lex-metacognition registry' } unless registry_available?
+            unless registry_available?
+              return { success: true, stage: :register,
+                       message: 'registration requires lex-metacognition registry',
+                       proposal_id: proposal_id_for(proposal) }
+            end
 
             result = Legion::Extensions::Metacognition::Runners::Registry.register_extension(
               name:        proposal.name,
@@ -170,7 +211,8 @@ module Legion
               description: proposal.description
             )
 
-            { success: result[:success], stage: :register, error: result[:error] }
+            { success: result[:success], stage: :register, error: result[:error],
+              proposal_id: proposal_id_for(proposal) }
           end
 
           # --- LLM implementation helpers ---

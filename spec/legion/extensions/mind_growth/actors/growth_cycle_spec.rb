@@ -68,8 +68,8 @@ RSpec.describe Legion::Extensions::MindGrowth::Actor::GrowthCycle do
   end
 
   describe '#check_subtask?' do
-    it 'returns false' do
-      expect(actor.check_subtask?).to be false
+    it 'returns true' do
+      expect(actor.check_subtask?).to be true
     end
   end
 
