@@ -1,6 +1,6 @@
 # lex-mind-growth
 
-**Version**: 0.2.1
+**Version**: 0.2.8
 
 A LegionIO cognitive architecture extension for autonomous cognitive expansion. Analyzes the current extension ecosystem against five reference cognitive models (Global Workspace, Free Energy Principle, Dual Process, Somatic Marker, Working Memory), identifies capability gaps, proposes new extensions to address them, evaluates proposals through a multi-dimensional scoring pipeline, and manages a staged build lifecycle for approved proposals.
 
@@ -20,7 +20,6 @@ Provides an autonomous growth loop for the cognitive architecture across multipl
 8. **Swarm** — coordinate multi-agent build swarms with consensus voting (v0.2.0)
 9. **Introspect** — retrospective session reports, trend analysis, and learning extraction
 10. **CLI** — `legion mind-growth` with 10 subcommands (v0.2.1 via LegionIO)
-11. **MCP Tools** — 6 `legion.mind_growth_*` tools via legion-mcp (v0.2.1)
 
 ## Usage
 
