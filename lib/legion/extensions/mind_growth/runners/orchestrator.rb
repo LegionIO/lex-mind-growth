@@ -76,7 +76,65 @@ module Legion
               model_coverage: profile[:model_coverage]&.map { |m| { model: m[:model], coverage: m[:coverage] } } }
           end
 
+          def post_build_pipeline(proposal_id:, base_path: nil, **) # rubocop:disable Lint/UnusedMethodArgument
+            proposal = Runners::Proposer.get_proposal_object(proposal_id)
+            return { skipped: true, reason: 'proposal not found' } unless proposal
+            return { skipped: true, reason: "not in :passing state (is #{proposal.status})" } unless proposal.status == :passing
+
+            result = { proposal_id: proposal_id }
+
+            wire_result = wire_proposal(proposal)
+            result[:wire] = wire_result
+            proposal.transition!(:wired) if wire_result[:success] != false
+
+            test_result = test_proposal(proposal)
+            result[:integration_test] = test_result
+
+            if test_result[:success] == false
+              proposal.transition!(:degraded)
+              result[:activated] = false
+            else
+              proposal.transition!(:active)
+              result[:activated] = true
+            end
+
+            result
+          rescue StandardError => e
+            { error: e.message }
+          end
+
           private
+
+          def wire_proposal(proposal)
+            phase = Helpers::PhaseAllocator.allocate_phase(
+              category:       proposal.category,
+              runner_methods: proposal.runner_methods
+            )
+            Runners::Wirer.wire_extension(
+              extension_name: proposal.name,
+              ext_module:     proposal.module_name,
+              runner_module:  "#{proposal.module_name}::Runners",
+              fn:             proposal.runner_methods&.first&.dig(:name) || 'status',
+              phase:          phase[:phase]
+            )
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
+
+          def test_proposal(proposal)
+            phase = Helpers::PhaseAllocator.allocate_phase(
+              category:       proposal.category,
+              runner_methods: proposal.runner_methods
+            )
+            Runners::IntegrationTester.test_extension_in_tick(
+              ext_module:    proposal.module_name,
+              runner_module: "#{proposal.module_name}::Runners",
+              fn:            proposal.runner_methods&.first&.dig(:name) || 'status',
+              phase:         phase[:phase]
+            )
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
 
           def propose_from_priorities(priorities, max)
             priorities.first(max).filter_map do |priority_name|
@@ -126,6 +184,13 @@ module Legion
                                  succeeded: builds.count { |b| b[:success] },
                                  failed:    builds.count { |b| !b[:success] },
                                  held:      force ? 0 : held_count }
+              builds.each do |build|
+                next unless build[:success]
+
+                proposal_id = build[:proposal]&.dig(:id) || build[:proposal_id]
+                post_result = post_build_pipeline(proposal_id: proposal_id, base_path: base_path)
+                trace[:steps] << { step: :post_build, proposal_id: proposal_id, result: post_result }
+              end
               nil
             end
           end
