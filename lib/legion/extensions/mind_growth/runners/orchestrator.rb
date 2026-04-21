@@ -83,23 +83,28 @@ module Legion
 
             result = { proposal_id: proposal_id }
 
+            log.info "[orchestrator] wiring proposal #{proposal_id}"
             wire_result = wire_proposal(proposal)
             result[:wire] = wire_result
             proposal.transition!(:wired) if wire_result[:success] != false
 
+            log.info "[orchestrator] testing proposal #{proposal_id}"
             test_result = test_proposal(proposal)
             result[:integration_test] = test_result
 
             if test_result[:success] == false
               proposal.transition!(:degraded)
               result[:activated] = false
+              log.info "[orchestrator] proposal #{proposal_id} degraded after integration test"
             else
               proposal.transition!(:active)
               result[:activated] = true
+              log.info "[orchestrator] proposal #{proposal_id} activated"
             end
 
             result
           rescue StandardError => e
+            log.error "[orchestrator] post_build_pipeline failed for #{proposal_id}: #{e.message}"
             { error: e.message }
           end
 
@@ -110,6 +115,7 @@ module Legion
               category:       proposal.category,
               runner_methods: proposal.runner_methods
             )
+            log.info "[orchestrator] wiring #{proposal.name} into tick phase #{phase[:phase]}"
             Runners::Wirer.wire_extension(
               extension_name: proposal.name,
               ext_module:     proposal.module_name,
@@ -118,10 +124,12 @@ module Legion
               phase:          phase[:phase]
             )
           rescue StandardError => e
+            log.error "[orchestrator] wire_proposal failed for #{proposal.name}: #{e.message}"
             { success: false, reason: e.message }
           end
 
           def test_proposal(proposal)
+            log.info "[orchestrator] running integration test for #{proposal.name}"
             phase = Helpers::PhaseAllocator.allocate_phase(
               category:       proposal.category,
               runner_methods: proposal.runner_methods
@@ -133,6 +141,7 @@ module Legion
               phase:         phase[:phase]
             )
           rescue StandardError => e
+            log.error "[orchestrator] test_proposal failed for #{proposal.name}: #{e.message}"
             { success: false, reason: e.message }
           end
 

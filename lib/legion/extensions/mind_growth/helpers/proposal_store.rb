@@ -74,8 +74,13 @@ module Legion
               proposal = ConceptProposal.from_h(hash)
               @proposals[id] = proposal
             end
-          rescue StandardError => _e
-            # Degrade gracefully — cache unavailable or corrupt
+            log.info "[proposal_store] rehydrated #{cached.size} proposals from cache" unless cached.empty?
+          rescue StandardError => e
+            log.error "[proposal_store] rehydrate_from_cache failed: #{e.message}"
+          end
+
+          def log
+            Legion::Logging
           end
         end
       end

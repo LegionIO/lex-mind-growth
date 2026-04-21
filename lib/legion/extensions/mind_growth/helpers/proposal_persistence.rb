@@ -22,7 +22,8 @@ module Legion
             Legion::Cache.set_sync(key, serialize(proposal_hash), ttl: PROPOSAL_TTL)
             update_index(proposal_hash[:id], :add)
             true
-          rescue StandardError => _e
+          rescue StandardError => e
+            log.error "[proposal_persistence] save_proposal failed for #{proposal_hash[:id]}: #{e.message}"
             false
           end
 
@@ -33,7 +34,8 @@ module Legion
             return nil unless raw
 
             deserialize(raw)
-          rescue StandardError => _e
+          rescue StandardError => e
+            log.error "[proposal_persistence] load_proposal failed for #{id}: #{e.message}"
             nil
           end
 
@@ -43,7 +45,8 @@ module Legion
             Legion::Cache.delete_sync(proposal_key(id))
             update_index(id, :remove)
             true
-          rescue StandardError => _e
+          rescue StandardError => e
+            log.error "[proposal_persistence] delete_proposal failed for #{id}: #{e.message}"
             false
           end
 
@@ -57,7 +60,8 @@ module Legion
               p = load_proposal(id)
               result[id] = p if p
             end
-          rescue StandardError => _e
+          rescue StandardError => e
+            log.error "[proposal_persistence] load_all_proposals failed: #{e.message}"
             {}
           end
 
@@ -66,7 +70,8 @@ module Legion
 
             Legion::Cache.set_sync(votes_key, serialize(votes_hash), ttl: PROPOSAL_TTL)
             true
-          rescue StandardError => _e
+          rescue StandardError => e
+            log.error "[proposal_persistence] save_votes failed: #{e.message}"
             false
           end
 
@@ -77,7 +82,8 @@ module Legion
             return {} unless raw
 
             deserialize(raw)
-          rescue StandardError => _e
+          rescue StandardError => e
+            log.error "[proposal_persistence] load_votes failed: #{e.message}"
             {}
           end
 
@@ -106,20 +112,25 @@ module Legion
 
             result = deserialize(raw)
             result.is_a?(Array) ? result : []
-          rescue StandardError => _e
+          rescue StandardError => e
+            log.error "[proposal_persistence] load_index failed: #{e.message}"
             []
           end
 
           def serialize(obj)
-            ::JSON.generate(obj)
+            Legion::JSON.dump(obj) # rubocop:disable Legion/HelperMigration/DirectJson
           end
 
           def deserialize(raw)
             return raw if raw.is_a?(Hash) || raw.is_a?(Array)
 
-            ::JSON.parse(raw, symbolize_names: true)
-          rescue ::JSON::ParserError => _e
+            Legion::JSON.load(raw) # rubocop:disable Legion/HelperMigration/DirectJson
+          rescue StandardError => _e
             nil
+          end
+
+          def log
+            Legion::Logging
           end
         end
       end

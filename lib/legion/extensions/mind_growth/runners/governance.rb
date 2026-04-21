@@ -38,6 +38,7 @@ module Legion
 
             tally = tally_votes(proposal_id: proposal_id)
             if tally[:verdict] != :pending
+              log.info "[governance] quorum reached for #{proposal_id}: #{tally[:verdict]}"
               if defined?(Legion::Events)
                 Legion::Events.emit('governance.quorum_reached',
                                     proposal_id: proposal_id, verdict: tally[:verdict])
@@ -55,9 +56,11 @@ module Legion
 
             case tally[:verdict]
             when :approved
+              log.info "[governance] build triggered for #{proposal_id}"
               build_result = Runners::Builder.build_extension(proposal_id: proposal_id, base_path: base_path)
               { action: :build_triggered, build: build_result, tally: tally }
             when :rejected
+              log.info "[governance] proposal rejected: #{proposal_id}"
               proposal = Runners::Proposer.get_proposal_object(proposal_id)
               proposal&.transition!(:rejected)
               { action: :rejected, tally: tally }
@@ -65,6 +68,7 @@ module Legion
               { action: :pending, tally: tally }
             end
           rescue StandardError => e
+            log.error "[governance] governance_resolved failed for #{proposal_id}: #{e.message}"
             { action: :error, error: e.message }
           end
 
