@@ -34,7 +34,36 @@ module Legion
                                             cast_at: Time.now.utc }
             end
 
+            tally = tally_votes(proposal_id: proposal_id)
+            if tally[:verdict] != :pending
+              if defined?(Legion::Events)
+                Legion::Events.emit('governance.quorum_reached',
+                                    proposal_id: proposal_id, verdict: tally[:verdict])
+              end
+              return { success: true, proposal_id: proposal_id, vote: vote_sym,
+                       agent_id: agent_id.to_s, verdict: tally[:verdict], quorum_reached: true }
+            end
+
             { success: true, proposal_id: proposal_id, vote: vote_sym, agent_id: agent_id.to_s }
+          end
+
+          def governance_resolved(proposal_id:, base_path: nil, **)
+            tally = tally_votes(proposal_id: proposal_id)
+            return { action: :tally_failed } unless tally[:success]
+
+            case tally[:verdict]
+            when :approved
+              build_result = Runners::Builder.build_extension(proposal_id: proposal_id, base_path: base_path)
+              { action: :build_triggered, build: build_result, tally: tally }
+            when :rejected
+              proposal = Runners::Proposer.get_proposal_object(proposal_id)
+              proposal&.transition!(:rejected)
+              { action: :rejected, tally: tally }
+            else
+              { action: :pending, tally: tally }
+            end
+          rescue StandardError => e
+            { action: :error, error: e.message }
           end
 
           def tally_votes(proposal_id:, **)
