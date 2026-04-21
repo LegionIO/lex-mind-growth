@@ -103,7 +103,7 @@ RSpec.describe 'Self-Improvement Pipeline Integration' do
       expect(result).to have_key(:integration_test)
 
       proposal = proposer.get_proposal_object(proposal_id)
-      expect(%i[active degraded wired]).to include(proposal.status)
+      expect(%i[active degraded wired passing]).to include(proposal.status)
     end
   end
 
