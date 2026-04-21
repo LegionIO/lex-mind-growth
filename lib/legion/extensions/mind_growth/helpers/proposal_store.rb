@@ -26,6 +26,13 @@ module Legion
             @mutex.synchronize { @proposals[id] }
           end
 
+          def update(proposal)
+            @mutex.synchronize do
+              @proposals[proposal.id] = proposal
+              @persistence.save_proposal(proposal.to_h)
+            end
+          end
+
           def all
             @mutex.synchronize { @proposals.values.dup }
           end
@@ -65,7 +72,10 @@ module Legion
 
           def evict_oldest
             oldest = @proposals.values.min_by { |p| p.created_at.to_f }
-            @proposals.delete(oldest.id) if oldest
+            return unless oldest
+
+            @proposals.delete(oldest.id)
+            @persistence.delete_proposal(oldest.id)
           end
 
           def rehydrate_from_cache

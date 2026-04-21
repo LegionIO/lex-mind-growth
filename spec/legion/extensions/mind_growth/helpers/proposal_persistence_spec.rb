@@ -48,7 +48,8 @@ RSpec.describe Legion::Extensions::MindGrowth::Helpers::ProposalPersistence do
     it 'removes the id from the index' do
       persistence.save_proposal({ id: 'p-del', name: 'delete-me' })
       persistence.delete_proposal('p-del')
-      expect(persistence.load_all_proposals).not_to have_key(:'p-del')
+      all_str = persistence.load_all_proposals.transform_keys(&:to_s)
+      expect(all_str).not_to have_key('p-del')
     end
   end
 

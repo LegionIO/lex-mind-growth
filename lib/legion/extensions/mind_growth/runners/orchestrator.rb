@@ -78,34 +78,53 @@ module Legion
 
           def post_build_pipeline(proposal_id:, base_path: nil, **) # rubocop:disable Lint/UnusedMethodArgument
             proposal = Runners::Proposer.get_proposal_object(proposal_id)
-            return { skipped: true, reason: 'proposal not found' } unless proposal
-            return { skipped: true, reason: "not in :passing state (is #{proposal.status})" } unless proposal.status == :passing
+            return { success: false, skipped: true, reason: 'proposal not found' } unless proposal
+            return { success: false, skipped: true, reason: "not in :passing state (is #{proposal.status})" } unless proposal.status == :passing
 
             result = { proposal_id: proposal_id }
 
             log.info "[orchestrator] wiring proposal #{proposal_id}"
             wire_result = wire_proposal(proposal)
             result[:wire] = wire_result
-            proposal.transition!(:wired) if wire_result[:success] != false
+
+            gaia_wire_skip = wire_result[:reason] == :gaia_not_available
+            if !gaia_wire_skip && wire_result[:success] != false
+              proposal.transition!(:wired)
+              Runners::Proposer.persist_proposal(proposal)
+            end
+
+            log.info "[orchestrator] wiring skipped for #{proposal_id} (GAIA unavailable)" if gaia_wire_skip
 
             log.info "[orchestrator] testing proposal #{proposal_id}"
             test_result = test_proposal(proposal)
             result[:integration_test] = test_result
 
+            if test_result[:reason] == :gaia_not_available
+              log.info "[orchestrator] integration test skipped for #{proposal_id} (GAIA unavailable)"
+              result[:success]   = false
+              result[:activated] = false
+              result[:reason]    = :gaia_not_available
+              return result
+            end
+
             if test_result[:success] == false
               proposal.transition!(:degraded)
+              Runners::Proposer.persist_proposal(proposal)
               result[:activated] = false
+              result[:success]   = false
               log.info "[orchestrator] proposal #{proposal_id} degraded after integration test"
             else
               proposal.transition!(:active)
+              Runners::Proposer.persist_proposal(proposal)
               result[:activated] = true
+              result[:success]   = true
               log.info "[orchestrator] proposal #{proposal_id} activated"
             end
 
             result
           rescue StandardError => e
             log.error "[orchestrator] post_build_pipeline failed for #{proposal_id}: #{e.message}"
-            { error: e.message }
+            { success: false, error: e.message }
           end
 
           private

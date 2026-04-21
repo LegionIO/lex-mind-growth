@@ -61,6 +61,7 @@ module Legion
 
             eval_scores = scores || score_with_llm(proposal) || default_scores
             proposal.evaluate!(eval_scores)
+            proposal_store.update(proposal)
             log.info "[mind_growth:proposer] evaluated #{proposal.name}: #{proposal.status}"
             { success: true, proposal: proposal.to_h, approved: proposal.status == :approved,
               auto_approved: proposal.auto_approvable? }
@@ -79,6 +80,10 @@ module Legion
 
           def get_proposal_object(id)
             proposal_store.get(id)
+          end
+
+          def persist_proposal(proposal)
+            proposal_store.update(proposal)
           end
 
           private

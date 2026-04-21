@@ -21,6 +21,7 @@ require 'legion/extensions/mind_growth/runners/integration_tester'
 require 'legion/extensions/mind_growth/runners/retrospective'
 require 'legion/extensions/mind_growth/runners/governance'
 require 'legion/extensions/mind_growth/hooks/governance_listener'
+Legion::Extensions::MindGrowth::Hooks::GovernanceListener.register
 require 'legion/extensions/mind_growth/runners/risk_assessor'
 require 'legion/extensions/mind_growth/helpers/composition_map'
 require 'legion/extensions/mind_growth/runners/monitor'

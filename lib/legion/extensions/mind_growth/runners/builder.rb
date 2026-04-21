@@ -16,6 +16,7 @@ module Legion
 
             pipeline = Helpers::BuildPipeline.new(proposal)
             proposal.transition!(:building)
+            persist_proposal(proposal)
             base_path ||= ::Dir.pwd
 
             run_stage(pipeline, :scaffold,  -> { scaffold_stage(proposal, base_path) })
@@ -25,6 +26,7 @@ module Legion
             run_stage(pipeline, :register,  -> { register_stage(proposal) }) unless pipeline.failed?
 
             proposal.transition!(pipeline.complete? ? :passing : :build_failed)
+            persist_proposal(proposal)
             log.info "[mind_growth:builder] #{proposal.name}: #{pipeline.stage}"
             { success: pipeline.complete?, pipeline: pipeline.to_h, proposal: proposal.to_h }
           rescue ArgumentError => e
@@ -44,6 +46,12 @@ module Legion
             return nil unless defined?(Runners::Proposer) && Runners::Proposer.respond_to?(:get_proposal_object)
 
             Runners::Proposer.get_proposal_object(proposal_id)
+          end
+
+          def persist_proposal(proposal)
+            return unless defined?(Runners::Proposer) && Runners::Proposer.respond_to?(:persist_proposal)
+
+            Runners::Proposer.persist_proposal(proposal)
           end
 
           def run_stage(pipeline, stage, callable)

@@ -81,7 +81,8 @@ module Legion
             raw = Legion::Cache.get(votes_key) # rubocop:disable Legion/HelperMigration/DirectCache
             return {} unless raw
 
-            deserialize(raw)
+            result = deserialize(raw)
+            result.is_a?(Hash) ? result : {}
           rescue StandardError => e
             log.error "[proposal_persistence] load_votes failed: #{e.message}"
             {}
