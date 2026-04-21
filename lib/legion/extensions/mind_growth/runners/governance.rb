@@ -33,7 +33,7 @@ module Legion
               votes_store[proposal_id] ||= []
               votes_store[proposal_id] << { vote: vote_sym, agent_id: agent_id.to_s, rationale: rationale,
                                             cast_at: Time.now.utc }
-              votes_store.dup
+              votes_store.transform_values(&:dup)
             end
 
             Helpers::ProposalPersistence.new.save_votes(snapshot)

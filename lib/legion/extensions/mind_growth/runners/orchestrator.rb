@@ -88,12 +88,22 @@ module Legion
             result[:wire] = wire_result
 
             gaia_wire_skip = wire_result[:reason] == :gaia_not_available
-            if !gaia_wire_skip && wire_result[:success] != false
+            wire_failed    = !gaia_wire_skip && wire_result[:success] == false
+
+            if wire_failed
+              log.warn "[orchestrator] wiring failed for #{proposal_id}: #{wire_result[:reason]}"
+              result[:activated] = false
+              result[:success]   = false
+              result[:reason]    = :wire_failed
+              return result
+            end
+
+            if gaia_wire_skip
+              log.info "[orchestrator] wiring skipped for #{proposal_id} (GAIA unavailable)"
+            else
               proposal.transition!(:wired)
               Runners::Proposer.persist_proposal(proposal)
             end
-
-            log.info "[orchestrator] wiring skipped for #{proposal_id} (GAIA unavailable)" if gaia_wire_skip
 
             log.info "[orchestrator] testing proposal #{proposal_id}"
             test_result = test_proposal(proposal)

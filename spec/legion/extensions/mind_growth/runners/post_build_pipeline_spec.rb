@@ -60,6 +60,9 @@ RSpec.describe 'Orchestrator full cycle with wire + test + activate' do
       proposal.transition!(:building)
       proposal.transition!(:passing)
 
+      allow(Legion::Extensions::MindGrowth::Runners::Wirer)
+        .to receive(:wire_extension)
+        .and_return({ success: true, extension: proposal.name, phase: :working_memory })
       allow(Legion::Extensions::MindGrowth::Runners::IntegrationTester)
         .to receive(:test_extension_in_tick)
         .and_return({ success: true, phase: :working_memory_integration })
@@ -77,6 +80,9 @@ RSpec.describe 'Orchestrator full cycle with wire + test + activate' do
       proposal.transition!(:building)
       proposal.transition!(:passing)
 
+      allow(Legion::Extensions::MindGrowth::Runners::Wirer)
+        .to receive(:wire_extension)
+        .and_return({ success: true, extension: proposal.name, phase: :working_memory })
       allow(Legion::Extensions::MindGrowth::Runners::IntegrationTester)
         .to receive(:test_extension_in_tick)
         .and_return({ success: false, reason: :runner_not_found })

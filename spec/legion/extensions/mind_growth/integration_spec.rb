@@ -98,12 +98,19 @@ RSpec.describe 'Self-Improvement Pipeline Integration' do
       proposal.transition!(:building)
       proposal.transition!(:passing)
 
+      allow(Legion::Extensions::MindGrowth::Runners::Wirer)
+        .to receive(:wire_extension)
+        .and_return({ success: true, extension: proposal.name, phase: :safety })
+      allow(Legion::Extensions::MindGrowth::Runners::IntegrationTester)
+        .to receive(:test_extension_in_tick)
+        .and_return({ success: true, phase: :safety_integration })
+
       result = orchestrator.post_build_pipeline(proposal_id: proposal_id)
       expect(result).to have_key(:wire)
       expect(result).to have_key(:integration_test)
 
       proposal = proposer.get_proposal_object(proposal_id)
-      expect(%i[active degraded wired passing]).to include(proposal.status)
+      expect(proposal.status).to eq(:active)
     end
   end
 

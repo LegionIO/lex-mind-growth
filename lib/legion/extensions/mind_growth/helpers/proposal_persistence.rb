@@ -65,6 +65,18 @@ module Legion
             {}
           end
 
+          def delete_all_proposals
+            return false unless cache_available?
+
+            ids = load_index
+            ids.each { |id| Legion::Cache.delete_sync(proposal_key(id)) }
+            Legion::Cache.delete_sync(index_key)
+            true
+          rescue StandardError => e
+            log.error "[proposal_persistence] delete_all_proposals failed: #{e.message}"
+            false
+          end
+
           def save_votes(votes_hash)
             return false unless cache_available?
 

@@ -7,11 +7,11 @@ module Legion
         class ProposalStore
           MAX_PROPOSALS = 500
 
-          def initialize
+          def initialize(rehydrate: true)
             @proposals   = {}
             @mutex       = Mutex.new
             @persistence = ProposalPersistence.new
-            rehydrate_from_cache
+            rehydrate_from_cache if rehydrate
           end
 
           def store(proposal)
@@ -66,6 +66,13 @@ module Legion
 
           def clear
             @mutex.synchronize { @proposals.clear }
+          end
+
+          def clear_persisted!
+            @mutex.synchronize do
+              @proposals.clear
+              @persistence.delete_all_proposals
+            end
           end
 
           private
