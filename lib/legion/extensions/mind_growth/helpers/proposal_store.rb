@@ -8,14 +8,17 @@ module Legion
           MAX_PROPOSALS = 500
 
           def initialize
-            @proposals = {}
-            @mutex     = Mutex.new
+            @proposals   = {}
+            @mutex       = Mutex.new
+            @persistence = ProposalPersistence.new
+            rehydrate_from_cache
           end
 
           def store(proposal)
             @mutex.synchronize do
               evict_oldest if @proposals.size >= MAX_PROPOSALS
               @proposals[proposal.id] = proposal
+              @persistence.save_proposal(proposal.to_h)
             end
           end
 
@@ -63,6 +66,16 @@ module Legion
           def evict_oldest
             oldest = @proposals.values.min_by { |p| p.created_at.to_f }
             @proposals.delete(oldest.id) if oldest
+          end
+
+          def rehydrate_from_cache
+            cached = @persistence.load_all_proposals
+            cached.each do |id, hash|
+              proposal = ConceptProposal.from_h(hash)
+              @proposals[id] = proposal
+            end
+          rescue StandardError => _e
+            # Degrade gracefully — cache unavailable or corrupt
           end
         end
       end

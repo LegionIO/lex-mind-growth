@@ -34,6 +34,8 @@ module Legion
                                             cast_at: Time.now.utc }
             end
 
+            Helpers::ProposalPersistence.new.save_votes(votes_store)
+
             tally = tally_votes(proposal_id: proposal_id)
             if tally[:verdict] != :pending
               if defined?(Legion::Events)
@@ -138,7 +140,11 @@ module Legion
           private
 
           def votes_store
-            @votes_store ||= {}
+            @votes_store ||= begin
+              persistence = Helpers::ProposalPersistence.new
+              cached      = persistence.load_votes
+              cached.empty? ? {} : cached.transform_keys(&:to_s)
+            end
           end
 
           def votes_mutex

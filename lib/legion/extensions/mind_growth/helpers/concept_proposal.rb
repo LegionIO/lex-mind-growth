@@ -59,6 +59,26 @@ module Legion
             @built_at = Time.now.utc if new_status == :passing
           end
 
+          def self.from_h(hash)
+            proposal = allocate
+            proposal.instance_variable_set(:@id,             hash[:id])
+            proposal.instance_variable_set(:@name,           hash[:name])
+            proposal.instance_variable_set(:@module_name,    hash[:module_name])
+            proposal.instance_variable_set(:@category,       hash[:category]&.to_sym)
+            proposal.instance_variable_set(:@description,    hash[:description])
+            proposal.instance_variable_set(:@metaphor,       hash[:metaphor])
+            proposal.instance_variable_set(:@helpers,        hash[:helpers] || [])
+            proposal.instance_variable_set(:@runner_methods, hash[:runner_methods] || [])
+            proposal.instance_variable_set(:@rationale,      hash[:rationale])
+            proposal.instance_variable_set(:@scores,         (hash[:scores] || {}).transform_keys(&:to_sym))
+            proposal.instance_variable_set(:@status,         hash[:status]&.to_sym || :proposed)
+            proposal.instance_variable_set(:@origin,         hash[:origin]&.to_sym || :proposer)
+            proposal.instance_variable_set(:@created_at,     hash[:created_at] ? Time.parse(hash[:created_at].to_s) : Time.now.utc)
+            proposal.instance_variable_set(:@evaluated_at,   hash[:evaluated_at] ? Time.parse(hash[:evaluated_at].to_s) : nil)
+            proposal.instance_variable_set(:@built_at,       hash[:built_at] ? Time.parse(hash[:built_at].to_s) : nil)
+            proposal
+          end
+
           def to_h
             FIELDS.to_h { |f| [f, send(f)] }
           end
