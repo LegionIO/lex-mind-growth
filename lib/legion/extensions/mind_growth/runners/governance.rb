@@ -19,6 +19,7 @@ module Legion
             return { success: false, error: :invalid_status, current_status: proposal.status } unless %i[proposed evaluating].include?(proposal.status)
 
             proposal.transition!(:evaluating)
+            Runners::Proposer.persist_proposal(proposal)
             { success: true, proposal_id: proposal_id, status: :evaluating }
           rescue ArgumentError => e
             { success: false, error: e.message }
@@ -28,13 +29,52 @@ module Legion
             vote_sym = vote.to_sym
             return { success: false, error: :invalid_vote } unless VOTE_VALUES.include?(vote_sym)
 
-            votes_mutex.synchronize do
+            snapshot = votes_mutex.synchronize do
               votes_store[proposal_id] ||= []
               votes_store[proposal_id] << { vote: vote_sym, agent_id: agent_id.to_s, rationale: rationale,
                                             cast_at: Time.now.utc }
+              votes_store.transform_values(&:dup)
+            end
+
+            Helpers::ProposalPersistence.new.save_votes(snapshot)
+
+            tally = tally_votes(proposal_id: proposal_id)
+            if tally[:verdict] != :pending
+              log.info "[governance] quorum reached for #{proposal_id}: #{tally[:verdict]}"
+              if defined?(Legion::Events)
+                Legion::Events.emit('governance.quorum_reached',
+                                    proposal_id: proposal_id, verdict: tally[:verdict])
+              end
+              return { success: true, proposal_id: proposal_id, vote: vote_sym,
+                       agent_id: agent_id.to_s, verdict: tally[:verdict], quorum_reached: true }
             end
 
             { success: true, proposal_id: proposal_id, vote: vote_sym, agent_id: agent_id.to_s }
+          end
+
+          def governance_resolved(proposal_id:, base_path: nil, **)
+            tally = tally_votes(proposal_id: proposal_id)
+            return { action: :tally_failed } unless tally[:success]
+
+            case tally[:verdict]
+            when :approved
+              log.info "[governance] build triggered for #{proposal_id}"
+              build_result = Runners::Builder.build_extension(proposal_id: proposal_id, base_path: base_path)
+              { action: :build_triggered, build: build_result, tally: tally }
+            when :rejected
+              log.info "[governance] proposal rejected: #{proposal_id}"
+              proposal = Runners::Proposer.get_proposal_object(proposal_id)
+              if proposal
+                proposal.transition!(:rejected)
+                Runners::Proposer.persist_proposal(proposal)
+              end
+              { action: :rejected, tally: tally }
+            else
+              { action: :pending, tally: tally }
+            end
+          rescue StandardError => e
+            log.error "[governance] governance_resolved failed for #{proposal_id}: #{e.message}"
+            { action: :error, error: e.message }
           end
 
           def tally_votes(proposal_id:, **)
@@ -61,6 +101,7 @@ module Legion
             return { success: false, error: :not_found } unless proposal
 
             proposal.transition!(:approved)
+            Runners::Proposer.persist_proposal(proposal)
             { success: true, proposal_id: proposal_id, status: :approved }
           rescue ArgumentError => e
             { success: false, error: e.message }
@@ -71,6 +112,7 @@ module Legion
             return { success: false, error: :not_found } unless proposal
 
             proposal.transition!(:rejected)
+            Runners::Proposer.persist_proposal(proposal)
             { success: true, proposal_id: proposal_id, status: :rejected, reason: reason }
           rescue ArgumentError => e
             { success: false, error: e.message }
@@ -109,7 +151,11 @@ module Legion
           private
 
           def votes_store
-            @votes_store ||= {}
+            @votes_store ||= begin
+              persistence = Helpers::ProposalPersistence.new
+              cached      = persistence.load_votes
+              cached.empty? ? {} : cached.transform_keys(&:to_s)
+            end
           end
 
           def votes_mutex

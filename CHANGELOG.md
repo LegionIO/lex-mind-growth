@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0] - 2026-04-21
+### Added
+- **Self-Improvement Pipeline (S1-S5)** — growth cycle now runs end-to-end autonomously from gap detection through activation
+- `Governance#governance_resolved` — auto-triggers build pipeline when governance votes reach quorum (S1+S5)
+- Async governance via `Legion::Events` — `vote_on_proposal` emits `governance.quorum_reached` event instead of blocking (S5)
+- `Hooks::GovernanceListener` — event listener that calls `governance_resolved` on approved quorum, registered at extension load
+- `Orchestrator#post_build_pipeline` — auto-wires built extensions into cognitive tick, runs integration tests, and activates (S2+S4)
+- `:wired` status transition — proposals now flow through `passing → wired → active` (previously stopped at `passing`)
+- Integration testing in cycle — `IntegrationTester.test_extension_in_tick` called automatically after wiring
+
 ## [0.2.8] - 2026-04-15
 ### Changed
 - Set `mcp_tools?`, `mcp_tools_deferred?`, and `transport_required?` to `false` — internal cognitive pipeline extension

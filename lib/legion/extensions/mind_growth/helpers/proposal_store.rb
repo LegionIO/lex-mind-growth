@@ -7,20 +7,30 @@ module Legion
         class ProposalStore
           MAX_PROPOSALS = 500
 
-          def initialize
-            @proposals = {}
-            @mutex     = Mutex.new
+          def initialize(rehydrate: true)
+            @proposals   = {}
+            @mutex       = Mutex.new
+            @persistence = ProposalPersistence.new
+            rehydrate_from_cache if rehydrate
           end
 
           def store(proposal)
             @mutex.synchronize do
               evict_oldest if @proposals.size >= MAX_PROPOSALS
               @proposals[proposal.id] = proposal
+              @persistence.save_proposal(proposal.to_h)
             end
           end
 
           def get(id)
             @mutex.synchronize { @proposals[id] }
+          end
+
+          def update(proposal)
+            @mutex.synchronize do
+              @proposals[proposal.id] = proposal
+              @persistence.save_proposal(proposal.to_h)
+            end
           end
 
           def all
@@ -58,11 +68,36 @@ module Legion
             @mutex.synchronize { @proposals.clear }
           end
 
+          def clear_persisted!
+            @mutex.synchronize do
+              @proposals.clear
+              @persistence.delete_all_proposals
+            end
+          end
+
           private
 
           def evict_oldest
             oldest = @proposals.values.min_by { |p| p.created_at.to_f }
-            @proposals.delete(oldest.id) if oldest
+            return unless oldest
+
+            @proposals.delete(oldest.id)
+            @persistence.delete_proposal(oldest.id)
+          end
+
+          def rehydrate_from_cache
+            cached = @persistence.load_all_proposals
+            cached.each do |id, hash|
+              proposal = ConceptProposal.from_h(hash)
+              @proposals[id] = proposal
+            end
+            log.info "[proposal_store] rehydrated #{cached.size} proposals from cache" unless cached.empty?
+          rescue StandardError => e
+            log.error "[proposal_store] rehydrate_from_cache failed: #{e.message}"
+          end
+
+          def log
+            Legion::Logging
           end
         end
       end
