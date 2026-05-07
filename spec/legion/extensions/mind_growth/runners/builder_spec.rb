@@ -266,6 +266,15 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Builder do
         expect(File.read(runner_path)).to include('# implemented')
       end
 
+      it 'handles native hash responses without requiring ask' do
+        allow(Legion::LLM).to receive(:chat).and_return({ content: "# frozen_string_literal: true\n\n# native\n" })
+
+        builder.build_extension(proposal_id: proposal_id, base_path: ext_dir)
+
+        runner_path = File.join(ext_dir, 'lex-buildable', 'lib', 'legion', 'extensions', 'buildable', 'runners', 'example.rb')
+        expect(File.read(runner_path)).to include('# native')
+      end
+
       it 'extracts code from markdown fences' do
         fenced = "Here's the code:\n```ruby\n# frozen_string_literal: true\n\nreal_code\n```\n"
         allow(mock_response).to receive(:content).and_return(fenced)
