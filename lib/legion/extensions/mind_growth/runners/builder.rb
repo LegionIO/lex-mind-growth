@@ -254,11 +254,15 @@ module Legion
 
           def legacy_implement_file(file_path, proposal)
             stub_content = ::File.read(file_path)
+            prompt = file_implementation_prompt(stub_content, proposal)
 
-            chat = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'build' }, intent: { capability: :reasoning }) # rubocop:disable Legion/HelperMigration/DirectLlm
-            chat.with_instructions(implementation_instructions)
-            response = chat.ask(file_implementation_prompt(stub_content, proposal))
-            code = extract_ruby_code(response.content)
+            response = Legion::LLM.chat( # rubocop:disable Legion/HelperMigration/DirectLlm
+              message: prompt,
+              caller:  { extension: 'lex-mind-growth', operation: 'build' },
+              intent:  { capability: :reasoning }
+            )
+            content = implementation_content(response, prompt)
+            code = extract_ruby_code(content)
 
             ::File.write(file_path, code)
             { success: true, path: file_path }
@@ -306,7 +310,26 @@ module Legion
             parts.join("\n")
           end
 
+          def implementation_content(response, prompt)
+            return response.strip if response.is_a?(String)
+            return response.content if response.respond_to?(:content)
+
+            if response.respond_to?(:ask)
+              response.with_instructions(implementation_instructions) if response.respond_to?(:with_instructions)
+              asked = response.ask(prompt)
+              return implementation_content(asked, prompt)
+            end
+
+            return nil unless response.is_a?(Hash)
+
+            response[:content] || response['content'] ||
+              response.dig(:message, :content) || response.dig('message', 'content') ||
+              response[:response] || response['response']
+          end
+
           def extract_ruby_code(content)
+            return '' unless content
+
             code = if content.match?(/```ruby\s*\n/)
                      content.match(/```ruby\s*\n(.*?)```/m)&.captures&.first || content
                    elsif content.match?(/```\s*\n/)

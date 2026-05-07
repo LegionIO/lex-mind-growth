@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.1] - 2026-05-07
+### Fixed
+- Proposer, evolver, and builder LLM integrations now handle native `Legion::LLM.chat` content hashes without requiring legacy `ask` sessions.
+- Builder implementation generation still preserves legacy instruction/session behavior when an older chat object is returned.
+
 ## [0.3.0] - 2026-04-21
 ### Added
 - **Self-Improvement Pipeline (S1-S5)** — growth cycle now runs end-to-end autonomously from gap detection through activation

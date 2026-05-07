@@ -122,16 +122,15 @@ module Legion
           def enrich_proposal(name, category, description)
             return {} unless llm_available?
 
-            # rubocop:disable Legion/HelperMigration/DirectLlm
-            response = Legion::LLM.chat(
+            content = llm_chat_content(
+              enrichment_prompt(name, category, description),
               caller: {
                 extension: 'lex-mind-growth',
                 operation: 'propose',
                 phase:     'capability'
               }
-            ).ask(enrichment_prompt(name, category, description))
-            # rubocop:enable Legion/HelperMigration/DirectLlm
-            parse_enrichment(response.content)
+            )
+            parse_enrichment(content)
           rescue StandardError => e
             log.debug "[mind_growth:proposer] LLM enrichment failed: #{e.message}"
             {}
@@ -174,8 +173,11 @@ module Legion
           def score_with_llm(proposal)
             return nil unless llm_available?
 
-            response = Legion::LLM.chat(caller: { extension: 'lex-mind-growth', operation: 'propose', phase: 'score' }).ask(scoring_prompt(proposal)) # rubocop:disable Legion/HelperMigration/DirectLlm
-            parse_scores(response.content)
+            content = llm_chat_content(
+              scoring_prompt(proposal),
+              caller: { extension: 'lex-mind-growth', operation: 'propose', phase: 'score' }
+            )
+            parse_scores(content)
           rescue StandardError => e
             log.debug "[mind_growth:proposer] LLM scoring failed: #{e.message}"
             nil
@@ -237,16 +239,15 @@ module Legion
             return nil unless llm_available?
 
             candidates = existing.last(20).map { |p| { name: p.name, description: p.description } }
-            # rubocop:disable Legion/HelperMigration/DirectLlm
-            response = Legion::LLM.chat(
+            content = llm_chat_content(
+              redundancy_prompt(name, description, candidates),
               caller: {
                 extension: 'lex-mind-growth',
                 operation: 'propose',
                 phase:     'validate'
               }
-            ).ask(redundancy_prompt(name, description, candidates))
-            # rubocop:enable Legion/HelperMigration/DirectLlm
-            parse_redundancy(response.content)
+            )
+            parse_redundancy(content)
           rescue StandardError => e
             log.debug "[mind_growth:proposer] LLM redundancy check failed: #{e.message}"
             nil
@@ -285,6 +286,27 @@ module Legion
             }
           rescue ::JSON::ParserError, NoMethodError => _e
             nil
+          end
+
+          def llm_chat_content(prompt, caller:)
+            response = Legion::LLM.chat(message: prompt, caller: caller) # rubocop:disable Legion/HelperMigration/DirectLlm
+            extract_llm_content(response, prompt)
+          end
+
+          def extract_llm_content(response, prompt)
+            return response.strip if response.is_a?(String)
+            return response.content if response.respond_to?(:content)
+
+            if response.respond_to?(:ask)
+              asked = response.ask(prompt)
+              return extract_llm_content(asked, prompt)
+            end
+
+            return nil unless response.is_a?(Hash)
+
+            response[:content] || response['content'] ||
+              response.dig(:message, :content) || response.dig('message', 'content') ||
+              response[:response] || response['response']
           end
         end
       end

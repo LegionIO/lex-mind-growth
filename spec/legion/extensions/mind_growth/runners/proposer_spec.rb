@@ -151,6 +151,14 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Proposer do
         expect(result[:proposal][:rationale]).to eq('fills the working memory gap')
       end
 
+      it 'handles native hash responses without requiring ask' do
+        allow(Legion::LLM).to receive(:chat).and_return({ content: enrichment_json })
+
+        result = proposer.propose_concept(name: 'lex-native', category: :cognition, description: 'native')
+
+        expect(result[:proposal][:metaphor]).to eq('like a garden growing knowledge')
+      end
+
       it 'handles LLM errors gracefully' do
         allow(mock_chat).to receive(:ask).and_raise(StandardError, 'timeout')
         result = proposer.propose_concept(name: 'lex-fallback', category: :cognition, description: 'test')
@@ -239,6 +247,18 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Proposer do
 
           result = proposer.propose_concept(name: 'lex-novel', category: :memory, description: 'totally novel', enrich: false)
           expect(result[:success]).to be true
+        end
+
+        it 'handles native redundancy hash responses without requiring ask' do
+          proposer.propose_concept(name: 'lex-native-base', category: :cognition, description: 'base', enrich: false)
+          allow(Legion::LLM).to receive(:chat).and_return(
+            { content: { redundant: true, similar_to: 'lex-native-base', score: 0.9 }.to_json }
+          )
+
+          result = proposer.propose_concept(name: 'lex-native-dup', category: :cognition, description: 'dup')
+
+          expect(result[:success]).to be false
+          expect(result[:error]).to eq(:redundant)
         end
 
         it 'uses REDUNDANCY_THRESHOLD for the cutoff' do
@@ -383,6 +403,14 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Proposer do
         expect(result[:success]).to be true
         expect(result[:proposal][:scores][:novelty]).to eq(0.85)
         expect(result[:proposal][:scores][:fit]).to eq(0.75)
+      end
+
+      it 'handles native score hash responses without requiring ask' do
+        allow(Legion::LLM).to receive(:chat).and_return({ content: score_json })
+
+        result = proposer.evaluate_proposal(proposal_id: proposal_id)
+
+        expect(result[:proposal][:scores][:novelty]).to eq(0.85)
       end
 
       it 'approves when LLM scores are above threshold' do

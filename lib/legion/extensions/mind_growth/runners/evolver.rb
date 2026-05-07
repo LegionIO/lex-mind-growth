@@ -129,16 +129,33 @@ module Legion
           def llm_suggestions(name, fitness, weaknesses)
             # rubocop:disable Legion/HelperMigration/DirectLlm
             response = Legion::LLM.chat(
-              caller: {
+              message: improvement_prompt(name, fitness, weaknesses),
+              caller:  {
                 extension: 'lex-mind-growth',
                 operation: 'evolver',
                 phase:     'suggest'
               }
-            ).ask(improvement_prompt(name, fitness, weaknesses))
+            )
             # rubocop:enable Legion/HelperMigration/DirectLlm
-            parse_llm_suggestions(response.content)
+            parse_llm_suggestions(llm_content(response, improvement_prompt(name, fitness, weaknesses)))
           rescue StandardError => _e
             nil
+          end
+
+          def llm_content(response, prompt)
+            return response.strip if response.is_a?(String)
+            return response.content if response.respond_to?(:content)
+
+            if response.respond_to?(:ask)
+              asked = response.ask(prompt)
+              return llm_content(asked, prompt)
+            end
+
+            return nil unless response.is_a?(Hash)
+
+            response[:content] || response['content'] ||
+              response.dig(:message, :content) || response.dig('message', 'content') ||
+              response[:response] || response['response']
           end
 
           def improvement_prompt(name, fitness, weaknesses)
@@ -153,12 +170,14 @@ module Legion
           end
 
           def parse_llm_suggestions(content)
+            return nil unless content
+
             cleaned = content.gsub(/```(?:json)?\s*\n?/, '').strip
             data = ::JSON.parse(cleaned)
             return nil unless data.is_a?(Array)
 
             data.map(&:to_s).reject(&:empty?)
-          rescue ::JSON::ParserError => _e
+          rescue ::JSON::ParserError, NoMethodError => _e
             nil
           end
 

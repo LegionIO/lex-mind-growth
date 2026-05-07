@@ -174,6 +174,15 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::Evolver do
         result = evolver.propose_improvement(extension: low_ext)
         expect(result[:suggestions]).to include('fix error handling')
       end
+
+      it 'handles native hash responses without requiring ask' do
+        allow(Legion::LLM).to receive(:started?).and_return(true)
+        allow(Legion::LLM).to receive(:chat).and_return({ content: '["reduce latency"]' })
+
+        result = evolver.propose_improvement(extension: low_ext)
+
+        expect(result[:suggestions]).to include('reduce latency')
+      end
     end
 
     it 'falls back to heuristic suggestions when LLM is unavailable' do
