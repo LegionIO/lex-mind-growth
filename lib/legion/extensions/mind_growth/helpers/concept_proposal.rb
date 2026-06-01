@@ -13,6 +13,7 @@ module Legion
           ].freeze
 
           attr_reader(*FIELDS)
+          attr_writer :origin, :rationale
 
           def initialize(name:, module_name:, category:, description:, metaphor: nil, helpers: [], # rubocop:disable Metrics/ParameterLists
                          runner_methods: [], rationale: nil, origin: :proposer)

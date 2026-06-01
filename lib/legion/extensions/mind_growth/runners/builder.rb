@@ -57,8 +57,16 @@ module Legion
           def run_stage(pipeline, stage, callable)
             return if pipeline.stage != stage
 
-            result = callable.call
-            pipeline.advance!(result)
+            max_attempts = Helpers::Constants::MAX_FIX_ATTEMPTS
+            attempt = 0
+
+            loop do
+              attempt += 1
+              result = callable.call
+              pipeline.advance!(result)
+
+              break if result[:success] || pipeline.failed? || attempt >= max_attempts
+            end
           end
 
           def ext_path(proposal, base_path)

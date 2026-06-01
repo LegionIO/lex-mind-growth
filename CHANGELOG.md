@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2] - 2026-06-01
+### Fixed
+- `BuildPipeline` retry mechanism — `Builder#run_stage` now retries failed stages up to `MAX_FIX_ATTEMPTS` (3) instead of recording the error once and giving up.
+- `SwarmBuilder#execute_integration_sweep` — added `IntegrationTester.test_cross_extension` method that was called but never defined; compares two extensions for naming, category, and interface compatibility.
+- `DreamIdeation` encapsulation — replaced `instance_variable_set` calls for `@origin` and `@rationale` with proper `attr_writer` on `ConceptProposal` (origin=, rationale=).
+- `DREAM_NOVELTY_BONUS` — constant (0.15) was defined but never used; now applied as a novelty score boost on dream-originated proposals via `apply_novelty_bonus`.
+
 ## [0.3.1] - 2026-05-07
 ### Fixed
 - Proposer, evolver, and builder LLM integrations now handle native `Legion::LLM.chat` content hashes without requiring legacy `ask` sessions.

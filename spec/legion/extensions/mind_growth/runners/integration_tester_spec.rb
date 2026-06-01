@@ -331,4 +331,75 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::IntegrationTester do
       expect(described_class::TICK_BUDGET_MS).to eq(5000)
     end
   end
+
+  describe '.test_cross_extension' do
+    it 'returns success: true with compatible result' do
+      result = tester.test_cross_extension(
+        extension_a: { name: 'lex-alpha' },
+        extension_b: { name: 'lex-beta' }
+      )
+      expect(result[:success]).to be true
+    end
+
+    it 'includes extension_a and extension_b names' do
+      result = tester.test_cross_extension(
+        extension_a: { name: 'lex-x' },
+        extension_b: { name: 'lex-y' }
+      )
+      expect(result[:extension_a]).to eq('lex-x')
+      expect(result[:extension_b]).to eq('lex-y')
+    end
+
+    it 'marks compatible as true' do
+      result = tester.test_cross_extension(
+        extension_a: { name: 'lex-x' },
+        extension_b: { name: 'lex-y' }
+      )
+      expect(result[:compatible]).to be true
+    end
+
+    it 'returns empty conflicts' do
+      result = tester.test_cross_extension(
+        extension_a: { name: 'lex-x' },
+        extension_b: { name: 'lex-y' }
+      )
+      expect(result[:conflicts]).to be_empty
+    end
+
+    it 'includes checks hash' do
+      result = tester.test_cross_extension(
+        extension_a: { name: 'lex-x' },
+        extension_b: { name: 'lex-y' }
+      )
+      expect(result[:checks]).to include(naming: true, category: true, interface: true)
+    end
+
+    it 'accepts string extension names' do
+      result = tester.test_cross_extension(
+        extension_a: 'lex-string-a',
+        extension_b: 'lex-string-b'
+      )
+      expect(result[:extension_a]).to eq('lex-string-a')
+      expect(result[:extension_b]).to eq('lex-string-b')
+    end
+
+    it 'accepts extension hashes with id' do
+      result = tester.test_cross_extension(
+        extension_a: { id: 'uuid-a' },
+        extension_b: { id: 'uuid-b' }
+      )
+      expect(result[:extension_a]).to eq('uuid-a')
+      expect(result[:extension_b]).to eq('uuid-b')
+    end
+
+    it 'ignores unknown keyword arguments' do
+      expect do
+        tester.test_cross_extension(
+          extension_a: { name: 'lex-x' },
+          extension_b: { name: 'lex-y' },
+          extra:       true
+        )
+      end.not_to raise_error
+    end
+  end
 end
