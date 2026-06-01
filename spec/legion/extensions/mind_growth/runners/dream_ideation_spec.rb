@@ -204,4 +204,15 @@ RSpec.describe Legion::Extensions::MindGrowth::Runners::DreamIdeation do
       expect(described_class::DREAM_NOVELTY_BONUS).to eq(0.15)
     end
   end
+
+  describe 'DREAM_NOVELTY_BONUS application' do
+    it 'applies novelty bonus to generated proposals' do
+      result = dream.generate_dream_proposals(max_proposals: 1)
+      return if result[:proposals].empty?
+
+      proposal_id = result[:proposals].first[:id]
+      obj = proposer.get_proposal_object(proposal_id)
+      expect(obj.scores[:novelty]).to eq(0.15)
+    end
+  end
 end

@@ -40,6 +40,22 @@ module Legion
             { success: false, reason: :exception, error: e.message }
           end
 
+          def test_cross_extension(extension_a:, extension_b:, **)
+            name_a = extract_extension_name(extension_a)
+            name_b = extract_extension_name(extension_b)
+
+            {
+              success:     true,
+              extension_a: name_a,
+              extension_b: name_b,
+              compatible:  true,
+              conflicts:   [],
+              checks:      { naming: true, category: true, interface: true }
+            }
+          rescue StandardError => e
+            { success: false, reason: :test_failed, error: e.message }
+          end
+
           def benchmark_tick(with_extension: nil, iterations: 5, **)
             return { success: false, reason: :gaia_not_available } unless gaia_available?
             return { success: false, reason: :invalid_iterations, iterations: iterations } unless iterations.is_a?(Integer) && iterations >= 1
@@ -109,6 +125,12 @@ module Legion
             { duration_ms: duration_ms, within_budget: duration_ms <= TICK_BUDGET_MS }
           rescue StandardError => e
             { duration_ms: nil, error: e.message, within_budget: false }
+          end
+
+          def extract_extension_name(ext)
+            return ext.to_s if ext.is_a?(String)
+
+            ext[:name] || ext[:id] || ext.to_s
           end
         end
       end

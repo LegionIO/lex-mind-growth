@@ -34,7 +34,10 @@ module Legion
 
               proposal_id = result[:proposal][:id]
               proposal    = Runners::Proposer.get_proposal_object(proposal_id)
-              proposal&.instance_variable_set(:@origin, :dream)
+              proposal.origin = :dream if proposal.respond_to?(:origin=)
+
+              # Apply novelty bonus to the proposal's scores for dream-originated concepts
+              apply_novelty_bonus(proposal)
 
               proposals << result[:proposal]
             end
@@ -75,7 +78,7 @@ module Legion
               existing  = proposal.rationale.to_s
               additions = dream_context.map { |k, v| "#{k}: #{v}" }.join('; ')
               new_rationale = existing.empty? ? additions : "#{existing}. Dream context: #{additions}"
-              proposal.instance_variable_set(:@rationale, new_rationale)
+              proposal.rationale = new_rationale if proposal.respond_to?(:rationale=)
               { success: true, proposal_id: proposal_id, enriched: true }
             else
               { success: true, proposal_id: proposal_id, enriched: false }
@@ -83,6 +86,14 @@ module Legion
           end
 
           private
+
+          def apply_novelty_bonus(proposal)
+            return unless proposal.respond_to?(:scores)
+
+            current_novelty = proposal.scores[:novelty] || 0.0
+            boosted = (current_novelty + DREAM_NOVELTY_BONUS).clamp(0.0, 1.0).round(3)
+            proposal.scores[:novelty] = boosted
+          end
 
           def build_coverage_by_category(models)
             coverage = {}
